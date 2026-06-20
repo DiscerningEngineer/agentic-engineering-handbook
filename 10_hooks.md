@@ -1,4 +1,4 @@
-# Chapter 09 -- Hooks
+# Chapter 10 -- Hooks
 
 **TL;DR.** Hooks are user-defined handlers that fire deterministically at points in Claude Code's lifecycle. They are the one mechanism in the system that does not wait on the model choosing to do the right thing. The harness runs them whether the model cooperates or not. Reach for a hook when a rule has to hold every time: block `rm -rf`, auto-format every edited file, refuse writes to `.env`, inject project state at session start, append an immutable audit record of every tool call. The mental model is three layers, event then matcher then handler, plus a control protocol your handler uses to tell the harness what happens next. Exit codes cover the simple case. JSON covers `allow`/`deny`/`ask`, input rewriting, and context injection. When a decision needs judgment instead of a fixed rule, a hook can call a model through the `prompt` and `agent` types, but the safety-critical guardrails belong in deterministic command hooks. Claude Code ships near-daily and the event roster grows often, so confirm the exact event list and any version-pinned field against the live [Hooks reference](https://code.claude.com/docs/en/hooks) and [changelog](https://code.claude.com/docs/en/changelog) before you teach or deploy.
 
@@ -18,8 +18,8 @@ It is also the cleanest decision boundary in the whole extension surface.
 |-----------|-----------|
 | A rule that must always hold (safety, compliance, formatting) | **Hook** (deterministic command) |
 | A judgment call applied consistently but not absolutely | **Prompt / agent hook** (model-evaluated) |
-| Reusable knowledge or a procedure the model applies itself | **Skill** (see Ch. 06) |
-| Access to a live external system | **MCP server** (see Ch. 08) |
+| Reusable knowledge or a procedure the model applies itself | **Skill** (see Ch. 07) |
+| Access to a live external system | **MCP server** (see Ch. 09) |
 | Static project conventions | **CLAUDE.md / `.claude/rules/`** (see Ch. 03) |
 
 There is a corollary worth holding onto, because the asymmetry is the whole security story in miniature. Hooks can tighten restrictions but they cannot loosen them. A `PreToolUse` hook that returns `deny` blocks a tool even in `bypassPermissions` mode or under `--dangerously-skip-permissions`, which means you can enforce policy a user cannot escape by flipping a permission mode. [^4] The reverse fails. A hook that returns `allow` does not override a deny rule from settings. The reference states it plainly: *"Hooks can tighten restrictions but not loosen them past what permission rules allow."* Deny rules from any scope, managed and enterprise settings included, always beat a hook's approval. [^4]
@@ -445,7 +445,7 @@ What goes in the log is a controls question, not an Anthropic-spec one. Practiti
 
 ### 5.5 Stop-gate (`Stop` -> don't let Claude quit until the check passes)
 
-Turn "looks done" into "is done" by gating the end of a turn on a real check. Anthropic frames this as the deterministic rung of the verification ladder: *"a Stop hook runs your check as a script and blocks the turn from ending until it passes. Claude Code overrides the hook and ends the turn after 8 consecutive blocks."* [^45] The deeper treatment of verification, including TDD with agents and adversarial review, lives in Ch. 11.
+Turn "looks done" into "is done" by gating the end of a turn on a real check. Anthropic frames this as the deterministic rung of the verification ladder: *"a Stop hook runs your check as a script and blocks the turn from ending until it passes. Claude Code overrides the hook and ends the turn after 8 consecutive blocks."* [^45] The deeper treatment of verification, including TDD with agents and adversarial review, lives in Ch. 12.
 
 ```bash
 #!/bin/bash

@@ -1,4 +1,4 @@
-# Chapter 11 -- Verification and Review: the Core Skill
+# Chapter 12 -- Verification and Review: the Core Skill
 
 **TL;DR.** When an agent writes a week of code in an afternoon, the work that used to be hard gets easy and the work that used to be easy becomes the whole job. Producing the code stopped being the constraint. Trusting it is the constraint now. Verification is the act of establishing that the work is correct, and it has quietly become the load-bearing skill of agentic engineering, the thing you spend most of your day doing. This chapter is the spine of the handbook. It covers test-driven development with agents, the verification loop and why "give Claude a check it can run" is the entire game, adversarial review and why the author should never grade its own work, tests-as-oracle lessons from Anthropic's C-compiler project, the managed Code Review service and the local `/code-review` skill, how to review AI-generated code at volume without becoming the bottleneck, and the judgment to know when output is wrong and when to keep your hands on the wheel. The lesson that keeps surfacing, drawn from the C-compiler, is that your verifier must be nearly perfect, or the agent will confidently solve the wrong problem. [^1]
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 11.1 Why verification is the core skill
+## 12.1 Why verification is the core skill
 
 The old craft was writing code that works. The new craft is establishing that code works, fast, at volume, often code you never typed. Anthropic's best-practices guide is blunt about the mechanism:
 
@@ -26,7 +26,7 @@ Anthropic names this exact trap in its failure-pattern list:
 
 ---
 
-## 11.2 The verification loop: give Claude a check it can run
+## 12.2 The verification loop: give Claude a check it can run
 
 Before any specific pattern, get the general shape into your bones. A verification loop is anything that returns a pass/fail signal Claude can read in the conversation. Anthropic lays out the menu:
 
@@ -61,7 +61,7 @@ A vague task hands the agent nothing to verify against, and it will fill that va
 
 ---
 
-## 11.3 Test-driven development with agents -- the strongest pattern
+## 12.3 Test-driven development with agents -- the strongest pattern
 
 If you carry one technique out of this chapter, carry this one. TDD is the highest-leverage way to work with a coding agent, and the reason is mechanical. Each red-to-green cycle gives the agent unambiguous, machine-checkable feedback, and it can iterate through the entire suite without you in the loop.
 
@@ -90,7 +90,7 @@ The "avoid mocks" addendum appears verbatim in a different example in Anthropic'
 
 ### The cheating failure mode, and how to stop it
 
-TDD's weakness lives in its own incentive. The agent's goal becomes "make the bar green," and there are two illegitimate roads to that color: weaken the test, or hard-code the answer. The defenses run weakest to strongest. The advisory floor is to tell it not to ("do not modify the tests"), which helps but is not guaranteed. Stronger is committing the tests before implementing, so a test edit shows up loudly in the diff. Stronger still is separating the roles, with one session writing tests and a different one writing code to pass them. Anthropic suggests this directly: "have one Claude write tests, then another write code to pass them." [^2] This is the Writer/Reviewer split applied to TDD, and it is covered in full in section 11.5.
+TDD's weakness lives in its own incentive. The agent's goal becomes "make the bar green," and there are two illegitimate roads to that color: weaken the test, or hard-code the answer. The defenses run weakest to strongest. The advisory floor is to tell it not to ("do not modify the tests"), which helps but is not guaranteed. Stronger is committing the tests before implementing, so a test edit shows up loudly in the diff. Stronger still is separating the roles, with one session writing tests and a different one writing code to pass them. Anthropic suggests this directly: "have one Claude write tests, then another write code to pass them." [^2] This is the Writer/Reviewer split applied to TDD, and it is covered in full in section 12.5.
 
 ### When TDD shines and when it doesn't
 
@@ -100,7 +100,7 @@ Inside Anthropic, the Security Engineering team rebuilt its workflow around exac
 
 ---
 
-## 11.4 Tests as oracle: lessons from the C-compiler
+## 12.4 Tests as oracle: lessons from the C-compiler
 
 The most instructive verification case study Anthropic has published is Nicholas Carlini's C compiler: a 100,000-line compiler built over nearly 2,000 Claude Code sessions across two weeks, at about $20,000 in API costs, reaching "99% pass rate on most compiler test suites including the GCC torture test suite." [^1] It is the clearest demonstration we have that verification, not generation, is the constraint on autonomous work.
 
@@ -118,11 +118,11 @@ Three durable, transferable lessons:
 
 3. **Unit-green is not regression-safe.** Late in the project, "Claude started to frequently break existing functionality each time it implemented a new feature." The fix was a CI pipeline with "stricter enforcement that allowed Claude to better test its work so that new commits can't break existing code." [^1] Every milestone in a long autonomous run must be checked against the full suite, not just the new tests. Advance only on green-across-the-board.
 
-There is a reason decomposition, and not just raw model quality, drives multi-agent verification. In Anthropic's multi-agent research evaluation, "a multi-agent system with Claude Opus 4 as the lead agent and Claude Sonnet 4 subagents outperformed single-agent Claude Opus 4 by 90.2% on our internal research eval," and on the BrowseComp eval "token usage by itself explains 80% of the variance." [^8] The implication for review is direct. Throwing more independent verifying agents at a problem works largely because they cover more ground without duplicating effort, which is exactly what managed Code Review's fan-out does (section 11.6).
+There is a reason decomposition, and not just raw model quality, drives multi-agent verification. In Anthropic's multi-agent research evaluation, "a multi-agent system with Claude Opus 4 as the lead agent and Claude Sonnet 4 subagents outperformed single-agent Claude Opus 4 by 90.2% on our internal research eval," and on the BrowseComp eval "token usage by itself explains 80% of the variance." [^8] The implication for review is direct. Throwing more independent verifying agents at a problem works largely because they cover more ground without duplicating effort, which is exactly what managed Code Review's fan-out does (section 12.6).
 
 ---
 
-## 11.5 Adversarial review: the author should not grade its own work
+## 12.5 Adversarial review: the author should not grade its own work
 
 The single most important structural insight in agentic review is that the agent that wrote the code is the worst possible reviewer of it. Anthropic's dynamic-workflows documentation names the three failure modes a verification step is built to counter: [^9]
 
@@ -173,7 +173,7 @@ This is a judgment call you cannot hand off. A critic optimizes for finding faul
 
 ### Specialized parallel verifiers
 
-The step up from one adversarial reviewer is several of them, each scoped to a single dimension, run in parallel, then synthesized. This is the fan-out-and-synthesize pattern in Anthropic's dynamic-workflows vocabulary, and it is what the managed Code Review service does internally (section 11.6), where each agent looks for a different class of issue. [^9] [^10] You can replicate it locally with custom subagents. The security reviewer from Anthropic's docs is the template:
+The step up from one adversarial reviewer is several of them, each scoped to a single dimension, run in parallel, then synthesized. This is the fan-out-and-synthesize pattern in Anthropic's dynamic-workflows vocabulary, and it is what the managed Code Review service does internally (section 12.6), where each agent looks for a different class of issue. [^9] [^10] You can replicate it locally with custom subagents. The security reviewer from Anthropic's docs is the template:
 
 ```markdown
 ---
@@ -198,7 +198,7 @@ Define analogous agents for performance, test coverage, regression risk, and cod
 
 ---
 
-## 11.6 Managed Code Review and the `/code-review` skill
+## 12.6 Managed Code Review and the `/code-review` skill
 
 Anthropic ships two complementary review tools, a local skill you run before pushing and a managed GitHub service that reviews PRs automatically. Both run the same multi-agent fan-out plus verification architecture under the hood.
 
@@ -252,13 +252,13 @@ Triggers are set per repository: once after PR creation, after every push (the m
 
 The `REVIEW.md` verification-bar pattern deserves a second look from senior teams. Anthropic's example rule, "behavior claims need a `file:line` citation in the source, not an inference from naming," is the evidence-not-assertions discipline you apply to the author, turned around and pointed at the reviewer. [^10] You are forcing the reviewing agent to show its own evidence.
 
-**Pricing** is billed by token usage. "Each review averages $15-25 in cost, scaling with PR size, codebase complexity, and how many issues require verification." [^10] Dollar figures drift, so read it as a trend rather than a constant and set a monthly spend cap via admin settings. Because cost scales with diff size and the number of findings that need verifying, smaller PRs are cheaper to review, which is one more argument for the small-PR discipline in section 11.7.
+**Pricing** is billed by token usage. "Each review averages $15-25 in cost, scaling with PR size, codebase complexity, and how many issues require verification." [^10] Dollar figures drift, so read it as a trend rather than a constant and set a monthly spend cap via admin settings. Because cost scales with diff size and the number of findings that need verifying, smaller PRs are cheaper to review, which is one more argument for the small-PR discipline in section 12.7.
 
 > **CI alternatives.** If managed hosted review is off the table (Zero Data Retention, a self-hosted GitHub instance, or custom logic), run Claude in your own pipeline. The docs point to GitHub Actions, GitLab CI/CD, and GitHub Enterprise Server, or you can script headless runs with `claude -p` and `--output-format json`. [^10] [^2] This is also the regulated-industry path. A `PostToolUse` hook logging every tool call produces a deterministic audit trail, and headless review in CI keeps the data inside your own infrastructure.
 
 ---
 
-## 11.7 Reviewing AI-generated code at scale
+## 12.7 Reviewing AI-generated code at scale
 
 Managed Code Review handles the agent-side first pass. The harder problem is the human side. When agents generate code faster than anyone can read it, review stops being a step and becomes the binding constraint on the entire system. Simon Willison hit this wall running parallel agents and named it plainly: "AI-generated code needs to be reviewed, which means the natural bottleneck on all of this is how fast I can review the results." [^11] Osmani puts numbers on the drift, citing the Cortex.io State of AI Benchmark 2026: as adoption rises, pull requests grow (~18% more additions), incidents per PR climb (~24%), and change-failure rates rise (~30%). His summary is the part to remember: "The biggest practical problem isn't that AI reviewers miss style issues -- it's that AI increases volume and shifts the burden onto humans." [^12]
 
@@ -268,7 +268,7 @@ The senior engineer's job is to keep all of this from collapsing into rubber-sta
 
 **2. Force small, incremental, stackable PRs.** "Break work into small pieces -- easier for AI to produce and for humans to review." [^5] The agent's capacity to emit a 2,000-line PR is a trap dressed up as productivity. Constrain task scope so each diff is reviewable in one sitting.
 
-**3. Require evidence as the admission price.** A PR without test output, logs, or screenshots is not ready for human eyes (section 11.2).
+**3. Require evidence as the admission price.** A PR without test output, logs, or screenshots is not ready for human eyes (section 12.2).
 
 **4. Spend your attention where AI is weakest.** Concentrate human review on the dimensions agents systematically miss: [^5]
 - **Security.** If code touches auth, payments, secrets, or untrusted input, "treat AI as a high-speed intern and require a human threat model review plus a security tool pass before merge." This is non-delegable.
@@ -283,7 +283,7 @@ This is the non-negotiable that should anchor your team's norms. Osmani states t
 
 ---
 
-## 11.8 The judgment layer: knowing when output is wrong, and when not to delegate
+## 12.8 The judgment layer: knowing when output is wrong, and when not to delegate
 
 Tooling closes most of the loop. The last gap, recognizing wrong output and deciding what to keep in your own hands, is irreducibly human. This is where staff-level discernment earns its keep.
 
@@ -291,11 +291,11 @@ Tooling closes most of the loop. The last gap, recognizing wrong output and deci
 
 Signals that should trigger deeper scrutiny regardless of a green bar:
 
-- **Plausible but unexplained.** If you can't articulate why the code is correct, you don't yet know that it is. The tests passing tells you the tests passed, which, after section 11.4, you know an agent can game.
+- **Plausible but unexplained.** If you can't articulate why the code is correct, you don't yet know that it is. The tests passing tells you the tests passed, which, after section 12.4, you know an agent can game.
 - **Solved-the-wrong-problem smell.** The C-compiler lesson at human scale: the diff satisfies the literal check but not the intent. Re-read the diff against the requirement, not against the tests.
 - **Suspicious greenness.** A hard problem that went green on the first try, especially with new or modified tests, warrants checking whether the agent weakened the oracle. Diff the tests.
 - **Edge-case silence.** Agents produce the happy path fluently and the edge cases poorly. If the diff has no error handling and no boundary tests, ask where they went.
-- **Over-engineering.** Extra abstraction layers and defensive code for impossible cases are the fingerprint of an over-eager critic loop (section 11.5), a signal to simplify rather than approve.
+- **Over-engineering.** Extra abstraction layers and defensive code for impossible cases are the fingerprint of an over-eager critic loop (section 12.5), a signal to simplify rather than approve.
 
 A CLAUDE.md rule worth stealing makes the same standard binding on the agent and on you: have the agent show evidence rather than assert success, and hold yourself to it too. Never approve anything you haven't actually reasoned about.
 
@@ -319,7 +319,7 @@ When the agent gets something wrong and you catch it, you have two roads. Correc
 
 ---
 
-## 11.9 Decision tables
+## 12.9 Decision tables
 
 **Which verification mechanism?**
 
@@ -357,7 +357,7 @@ When the agent gets something wrong and you catch it, you have two roads. Correc
 
 ---
 
-## 11.10 Practitioner checklist
+## 12.10 Practitioner checklist
 
 - [ ] Every task ships with a verification criterion *in the prompt* (test cases, screenshot target, "verify the build succeeds").
 - [ ] TDD is the default for specifiable behavior: tests first, confirm they fail, implement to green, never modify the tests.

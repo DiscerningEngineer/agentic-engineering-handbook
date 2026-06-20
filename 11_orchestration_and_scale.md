@@ -1,4 +1,4 @@
-# Chapter 10 -- Multi-Agent Orchestration and Scale
+# Chapter 11 -- Multi-Agent Orchestration and Scale
 
 **TL;DR.** Claude Code gives you several ways to run more than one agent at once, and the hard part was never running them. The hard part is knowing which one to reach for, and knowing when to reach for none of them. Three questions resolve almost everything: who holds the plan, do the workers need to talk to each other, and do they touch the same files. Subagents delegate side work inside one conversation. Agent view hands off independent sessions you check back on. Agent teams put a lead in charge of peer sessions that message each other. Dynamic workflows lift the plan out of Claude's head and into a JavaScript script that fans out to dozens-to-hundreds of subagents and cross-checks their results. The Agent SDK and headless `claude -p` run all of this programmatically for CI and production. Underneath every one of them sit git worktrees, the quiet primitive that isolates file edits so parallel work doesn't collide. Anthropic's own numbers are the compass: their multi-agent research system beat single-agent Opus 4 by 90.2% on an internal eval, and token usage alone explained about 80% of the performance variance, which says the lever is good decomposition that puts more high-signal tokens against the problem without duplicating work, rather than simply running more agents.
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 10.1 The orchestration landscape: surfaces and a decision tree
+## 11.1 The orchestration landscape: surfaces and a decision tree
 
 There is no single "multi-agent" feature in Claude Code. There are four ways to run agents in parallel, and Anthropic's "Run agents in parallel" page organizes them by the question that actually matters in the moment: who coordinates the work. [^2]
 
@@ -19,7 +19,7 @@ There is no single "multi-agent" feature in Claude Code. There are four ways to 
 
 [^2]
 
-Layered on top of those, the **Agent SDK** and headless **`claude -p`** run the whole loop programmatically, for CI and for products built on the harness (10.6, 10.7). Two more things support parallel work without being a coordination style of their own. Git worktrees give each session a separate git checkout so parallel sessions never edit the same files; they are the isolation primitive several of the surfaces above quietly sit on top of. [^3] And `/batch` is a bundled skill, "a packaged use of subagents and worktrees," that splits one large change into 5 to 30 worktree-isolated subagents that each open a pull request. It rides on the surfaces below it rather than standing as a fifth one. [^2]
+Layered on top of those, the **Agent SDK** and headless **`claude -p`** run the whole loop programmatically, for CI and for products built on the harness (11.6, 11.7). Two more things support parallel work without being a coordination style of their own. Git worktrees give each session a separate git checkout so parallel sessions never edit the same files; they are the isolation primitive several of the surfaces above quietly sit on top of. [^3] And `/batch` is a bundled skill, "a packaged use of subagents and worktrees," that splits one large change into 5 to 30 worktree-isolated subagents that each open a pull request. It rides on the surfaces below it rather than standing as a fifth one. [^2]
 
 Three questions resolve almost every routing decision: [^2]
 
@@ -31,7 +31,7 @@ Three questions resolve almost every routing decision: [^2]
 
 ---
 
-## 10.2 Subagents vs. agent teams: the core distinction
+## 11.2 Subagents vs. agent teams: the core distinction
 
 This is the distinction senior engineers get wrong most often, so it is worth nailing precisely. Both parallelize work. What separates them is the communication topology, the shape of who is allowed to talk to whom. [^4]
 
@@ -47,7 +47,7 @@ This is the distinction senior engineers get wrong most often, so it is worth na
 
 The one-line heuristic, lifted from the docs: "Use subagents when you need quick, focused workers that report back. Use agent teams when teammates need to share findings, challenge each other, and coordinate on their own." [^4]
 
-A subagent is a specialized worker with its own context window, system prompt, tools, model, and permissions. It works alone and returns only a summary to whoever called it. The isolation is the entire point. You push the verbose work into a subagent -- the test runs, the log scans, the wide file reads -- and only the distilled answer comes back to land in your main window. The noise stays where the noise belongs. The full mechanics of subagents -- the built-in roster, custom-agent frontmatter, the five-level nesting limit, forks, and the model knobs -- are the subject of Ch. 07; this chapter only needs the orchestration-shaped facts about them. Two of those bite people who skip them. First, a subagent can never ask you anything: the tools that depend on the interactive session (`AskUserQuestion`, `EnterPlanMode`, `ScheduleWakeup`, `WaitForMcpServers`) "are not available to subagents, even when listed in the `tools` field." That is the actual reason an agent "can't ask a clarifying question" -- it has no mouth pointed at you, so front-load the context it needs. Second, parallel subagents that edit the same files overwrite each other unless you isolate them in worktrees (10.3). [^5]
+A subagent is a specialized worker with its own context window, system prompt, tools, model, and permissions. It works alone and returns only a summary to whoever called it. The isolation is the entire point. You push the verbose work into a subagent -- the test runs, the log scans, the wide file reads -- and only the distilled answer comes back to land in your main window. The noise stays where the noise belongs. The full mechanics of subagents -- the built-in roster, custom-agent frontmatter, the five-level nesting limit, forks, and the model knobs -- are the subject of Ch. 08; this chapter only needs the orchestration-shaped facts about them. Two of those bite people who skip them. First, a subagent can never ask you anything: the tools that depend on the interactive session (`AskUserQuestion`, `EnterPlanMode`, `ScheduleWakeup`, `WaitForMcpServers`) "are not available to subagents, even when listed in the `tools` field." That is the actual reason an agent "can't ask a clarifying question" -- it has no mouth pointed at you, so front-load the context it needs. Second, parallel subagents that edit the same files overwrite each other unless you isolate them in worktrees (11.3). [^5]
 
 ### Agent teams in depth (experimental)
 
@@ -117,7 +117,7 @@ There is no hard limit, but the docs are unusually opinionated here, and the opi
 
 ---
 
-## 10.3 Git worktrees: the isolation primitive
+## 11.3 Git worktrees: the isolation primitive
 
 Worktrees are the unglamorous foundation that makes safe parallelism possible, and nobody ever puts them on a slide. A git worktree is "a separate working directory with its own files and branch, sharing the same repository history and remote as your main checkout," so edits in one session never reach over and touch another's. Hold the division clearly: worktrees isolate the file edits, and subagents and agent teams coordinate the work itself. One is about where the writing lands, the other is about who is writing. [^3]
 
@@ -171,7 +171,7 @@ On exit, cleanup depends on state. No uncommitted changes, no untracked files, n
 
 ---
 
-## 10.4 Orchestrator-worker: fan-out / fan-in, and the token-variance lesson
+## 11.4 Orchestrator-worker: fan-out / fan-in, and the token-variance lesson
 
 The canonical pattern for scale is the orchestrator and its workers. A lead agent reads the task, works out a strategy, spawns workers to chase different aspects at the same time (fan-out), then gathers what they found and stitches it together (fan-in). Anthropic's multi-agent research system is the reference implementation, and its numbers are the thing to anchor on rather than the architecture diagram. This is the canonical home for those figures. [^6]
 
@@ -205,7 +205,7 @@ This is the senior judgment call, the one no flag makes for you. The cheat sheet
 
 ---
 
-## 10.5 Dynamic workflows: moving the plan into code
+## 11.5 Dynamic workflows: moving the plan into code
 
 Subagents, skills, and agent teams all keep the plan inside Claude's head, in a context window or in turn-by-turn judgment. A dynamic workflow is "a JavaScript script that orchestrates subagents at scale." Claude writes the script for the task you describe, and a runtime executes it in the background while your session stays responsive. The intermediate results live in script variables instead of Claude's context, "so Claude's context holds only the final answer," and the orchestration stops being a one-time performance and becomes a thing you can read, rerun, and hand to someone else. [^7]
 
@@ -273,7 +273,7 @@ For org control, disable with `"disableWorkflows": true` in settings or managed 
 
 ---
 
-## 10.6 The Claude Agent SDK: orchestration as code
+## 11.6 The Claude Agent SDK: orchestration as code
 
 When you outgrow the CLI, when the work becomes CI/CD or production automation or a product built on the harness itself, you reach for the Claude Agent SDK, which gives you "the same tools, agent loop, and context management that power Claude Code, programmable in Python and TypeScript." The thing you have been driving by hand becomes a thing your code drives. [^9]
 
@@ -310,7 +310,7 @@ The SDK exposes the whole feature surface programmatically:
 
 By default it also loads filesystem config (`.claude/skills`, `.claude/commands`, `CLAUDE.md`, plugins) matching the CLI; restrict that via `setting_sources` / `settingSources` (pass `[]` to run isolated, which "is especially important for CI/CD pipelines, deployed applications, test environments, and multi-tenant systems"). [^9]
 
-Orchestration in the SDK is the fan-out pattern written in code: multiple subagents run concurrently, so "independent subtasks finish in the time of the slowest one rather than the sum of all of them." During a review you run the style-checker, the security-scanner, and the test-coverage subagent all at once instead of waiting for each to clear before the next begins. For runs that coordinate dozens to hundreds of agents, the SDK exposes the `Workflow` tool (TypeScript Agent SDK v0.3.149+), which moves the orchestration into a script the same way 10.5 describes. [^11]
+Orchestration in the SDK is the fan-out pattern written in code: multiple subagents run concurrently, so "independent subtasks finish in the time of the slowest one rather than the sum of all of them." During a review you run the style-checker, the security-scanner, and the test-coverage subagent all at once instead of waiting for each to clear before the next begins. For runs that coordinate dozens to hundreds of agents, the SDK exposes the `Workflow` tool (TypeScript Agent SDK v0.3.149+), which moves the orchestration into a script the same way 11.5 describes. [^11]
 
 ### SDK vs. CLI vs. Managed Agents
 
@@ -326,7 +326,7 @@ The common path Anthropic recommends is to "prototype with the Agent SDK locally
 
 ---
 
-## 10.7 Headless mode: `claude -p` for scripts and CI
+## 11.7 Headless mode: `claude -p` for scripts and CI
 
 The SDK's CLI face is headless mode, `claude -p` (or `--print`). This is the backbone of scripted pipelines, project-specific linters, and CI gates, the workhorse that runs when no human is sitting there to watch it. [^12]
 
@@ -368,21 +368,21 @@ Run both from the same directory, since "session ID lookup is scoped to the curr
 
 ---
 
-## 10.8 The lesson that governs all autonomous scale: build the verifier first
+## 11.8 The lesson that governs all autonomous scale: build the verifier first
 
 Everything above scales throughput. None of it decides whether the throughput produces value or garbage. That is decided by one thing, and it is the most important idea in the chapter for anyone running autonomous agents at scale: your verifier must be near-flawless, because a capable agent will work autonomously to solve whatever you actually measure, and if your measure has a gap, it will solve the wrong problem and look productive doing it.
 
-The clearest demonstration is Anthropic's autonomous C-compiler build, a large run that leaned on heavy parallelism across many sessions (see Ch. 11 for the full case study, including the figures, the test-harness design, TDD-with-agents, and adversarial review). The governing lesson, in the words of the engineer who ran it: "Claude will work autonomously to solve whatever problem I give it. So it's important that the task verifier is nearly perfect, otherwise Claude will solve the wrong problem." [^13]
+The clearest demonstration is Anthropic's autonomous C-compiler build, a large run that leaned on heavy parallelism across many sessions (see Ch. 12 for the full case study, including the figures, the test-harness design, TDD-with-agents, and adversarial review). The governing lesson, in the words of the engineer who ran it: "Claude will work autonomously to solve whatever problem I give it. So it's important that the task verifier is nearly perfect, otherwise Claude will solve the wrong problem." [^13]
 
 What you are looking at is specification gaming, reward hacking, and you cannot prompt your way out of it because it is not a defect. It is a structural property of optimizing toward a metric. At human pace you catch a wrong-but-green solution in review, because something feels off and you slow down. At agent pace, across thousands of sessions, an imperfect oracle quietly compounds into a mountain of confidently wrong code while you sleep. The verifier is the spec. Whatever it accepts is what you asked for, whether you meant to or not.
 
-The orchestration-specific corollary from the same build is about collision. When the C-compiler agents tried to compile the Linux kernel, "every agent would hit the same bug, fix that bug, and then overwrite each other's changes." The fix was a sharper oracle: a harness that compiled most of the kernel with GCC and handed only the remaining files to Claude's compiler, so the agents owned different files and stopped fighting over the same one. [^13] The lesson generalizes past compilers and ties straight back to 10.4: when parallel agents keep converging on a single shared bottleneck, your decomposition is wrong, not your agents.
+The orchestration-specific corollary from the same build is about collision. When the C-compiler agents tried to compile the Linux kernel, "every agent would hit the same bug, fix that bug, and then overwrite each other's changes." The fix was a sharper oracle: a harness that compiled most of the kernel with GCC and handed only the remaining files to Claude's compiler, so the agents owned different files and stopped fighting over the same one. [^13] The lesson generalizes past compilers and ties straight back to 11.4: when parallel agents keep converging on a single shared bottleneck, your decomposition is wrong, not your agents.
 
 Here is the line that connects this chapter to the rest of the handbook. As agents generate more code in parallel, the human's job collapses onto verification. Orchestration multiplies the output, and a near-flawless verifier is the only thing standing between that output and a quiet disaster you will not notice for a week. Scale does not remove the senior engineer. It moves them out of the implementation and into the chair where the oracle gets designed and the work gets reviewed. Build the oracle first.
 
 ---
 
-## 10.9 Decision tables (slide-ready)
+## 11.9 Decision tables (slide-ready)
 
 **Which parallelism surface?**
 

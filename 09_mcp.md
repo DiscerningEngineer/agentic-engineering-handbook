@@ -1,4 +1,4 @@
-# Chapter 08: MCP (Model Context Protocol)
+# Chapter 09 -- MCP (Model Context Protocol)
 
 **TL;DR.** MCP is the open standard that lets Claude Code reach the systems it doesn't ship with: issue trackers, databases, monitoring, design tools, internal APIs. The protocol exposes three server-side primitives (**tools**, **resources**, **prompts**) over two transports (**stdio** for local processes, **streamable HTTP** for remote services), configured at three scopes (**local**, **project**, **user**) plus enterprise-managed and plugin-bundled layers. Your job as the senior in the room is fourfold. Know the primitives well enough to choose MCP over a skill or subagent when the task is genuinely "reach a live external system." Get auth right, which means OAuth 2.1 with PKCE for remote servers and never API keys in committed files. Treat `.mcp.json` as executable supply chain and review it like code. And keep context cheap, which in 2026 means leaning on **tool search** (deferred tool definitions, on by default) and, for high-volume integrations, **code execution with MCP**. The protocol and the CLI both ship fast. Verify version-pinned details against the changelog before you teach or automate against them. [^1] [^2]
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 8.1 What MCP is, and the one-line heuristic for when to use it
+## 9.1 What MCP is, and the one-line heuristic for when to use it
 
 MCP, the Model Context Protocol, is an open standard for connecting AI applications to external tools and data. The marketing line is "USB-C for AI." The useful line is operational, and it comes straight from the docs:
 
@@ -35,14 +35,14 @@ This is the question a senior gets asked constantly, so anchor it before the det
 |---|---|---|
 | Live data from / actions on an external system | **MCP server** | A skill can't query your prod DB; it only knows *how* |
 | Reusable knowledge or a procedure Claude runs itself | **Skill** | MCP adds protocol + network overhead for what is just instructions |
-| Isolation / parallel work / a clean context window | **Subagent** | MCP doesn't isolate context; it *adds* to it (see Ch. 07) |
+| Isolation / parallel work / a clean context window | **Subagent** | MCP doesn't isolate context; it *adds* to it (see Ch. 08) |
 | A guardrail the model can't talk its way around | **Hook** | MCP tools are model-controlled; the model decides whether to call them |
 
 These compose. A subagent can be scoped to exactly one MCP server (`mcpServers` in its frontmatter). A skill can document how to use an MCP tool. A hook can gate which MCP tools are even allowed. The mistake is reaching for MCP when the real need was "Claude needs to know our deploy procedure," which is a skill, or "stop Claude from force-pushing," which is a hook. MCP earns its weight when the answer lives genuinely outside the model and outside the repo. [^3]
 
 ---
 
-## 8.2 The three server primitives
+## 9.2 The three server primitives
 
 MCP servers expose exactly three kinds of capability. The distinction a senior cares about is **who controls invocation**, because that determines how the capability shows up in Claude Code and how much you can trust it. [^2]
 
@@ -61,7 +61,7 @@ mcp__plugin_<plugin-name>_<server-name>__<tool-name>   # plugin-bundled servers
 
 For plugin-bundled tools, any character outside `A-Z a-z 0-9 _ -` is replaced with `_`. [^1]
 
-Tool descriptions are the new context tax. Because tools are model-controlled, the model reads every advertised description to decide what to call. That's the reason section 8.6 (tool search) and section 8.7 (code execution) exist at all. At scale, the dominant cost is tool *definitions*, not tool *results*.
+Tool descriptions are the new context tax. Because tools are model-controlled, the model reads every advertised description to decide what to call. That's the reason section 9.6 (tool search) and section 9.7 (code execution) exist at all. At scale, the dominant cost is tool *definitions*, not tool *results*.
 
 ### Resources: application-controlled
 
@@ -111,11 +111,11 @@ There's also an **experimental Tasks** primitive, a durable execution wrapper fo
 
 MCP is a *stateful* protocol. The connection opens with an `initialize` request carrying a `protocolVersion` (a date string like `2025-06-18`) and a `capabilities` object; the server responds with its own version and capabilities (`"tools": {"listChanged": true}` means "I support tools and will notify you when the list changes"); the client sends `notifications/initialized`. After that, the client lists and uses primitives. If the two sides can't agree on a mutually compatible protocol version, the connection should terminate rather than guess. [^2]
 
-Then there's the dynamic part. Servers that declared `listChanged` can send `notifications/tools/list_changed` (and the resource and prompt equivalents) at any time. Claude Code honors these and refreshes capabilities without a reconnect. That is useful, and it is also a security surface, because a server can change the tools you have after you approved it (see section 8.8). [^1]
+Then there's the dynamic part. Servers that declared `listChanged` can send `notifications/tools/list_changed` (and the resource and prompt equivalents) at any time. Claude Code honors these and refreshes capabilities without a reconnect. That is useful, and it is also a security surface, because a server can change the tools you have after you approved it (see section 9.8). [^1]
 
 ---
 
-## 8.3 Transports: stdio vs streamable HTTP (and the deprecated ones)
+## 9.3 Transports: stdio vs streamable HTTP (and the deprecated ones)
 
 Two transports carry the same JSON-RPC. Pick by where the server runs and who connects to it. [^2]
 
@@ -163,7 +163,7 @@ Resilience is built in. If an HTTP/SSE server drops mid-session, Claude Code rec
 
 ---
 
-## 8.4 Scopes: local, project, user, and who sees `.mcp.json`
+## 9.4 Scopes: local, project, user, and who sees `.mcp.json`
 
 Scope controls which projects a server loads in and whether your team gets it. Three scopes, plus enterprise-managed and plugin layers above them. [^1]
 
@@ -193,7 +193,7 @@ The three scopes match duplicates by **name**; plugins and connectors match by *
 
 ### `.mcp.json` is the team-shared, version-controlled file
 
-The project scope writes to `.mcp.json` at the repo root, designed to be committed so every teammate gets the same servers. That same convenience is exactly why it's a supply-chain surface (section 8.8). The format is standardized:
+The project scope writes to `.mcp.json` at the repo root, designed to be committed so every teammate gets the same servers. That same convenience is exactly why it's a supply-chain surface (section 9.8). The format is standardized:
 
 ```json
 {
@@ -243,7 +243,7 @@ The `/mcp` panel shows a tool count per server and flags servers that advertise 
 
 ---
 
-## 8.5 Authentication and security: OAuth 2.1 + PKCE
+## 9.5 Authentication and security: OAuth 2.1 + PKCE
 
 For remote (HTTP) servers, authentication is where seniors earn their keep. The short version: OAuth 2.1 with PKCE for anything remote, per-user credentials instead of shared secrets in committed files, short-lived tokens. Here's the depth behind that.
 
@@ -324,11 +324,11 @@ The spec ships a dedicated security-best-practices doc. Five threats are worth m
 4. **SSRF during OAuth discovery.** A *malicious server* can hand the client metadata URLs pointing at `169.254.169.254` (cloud metadata), internal IPs, or localhost services. Mitigation lives in the client: enforce HTTPS, block private/reserved IP ranges, validate redirect targets, watch for DNS-rebinding TOCTOU, and prefer an egress proxy for server-side deployments. Avoid hand-rolling IP validation; encoding tricks (octal, hex, IPv4-mapped IPv6) defeat naive parsers. [^6]
 5. **Scope minimization.** Avoid publishing every scope in `scopes_supported`, and avoid requesting them all. Start with a minimal read/discovery scope and elevate incrementally via `WWW-Authenticate` `scope` challenges. Broad omnibus scopes (`*`, `full-access`) expand blast radius, drive consent abandonment, and muddy audit. [^6]
 
-There's also a sixth, aimed at local servers (section 8.8): **local MCP server compromise**, a malicious startup command or payload running with your full privileges. [^6]
+There's also a sixth, aimed at local servers (section 9.8): **local MCP server compromise**, a malicious startup command or payload running with your full privileges. [^6]
 
 ---
 
-## 8.6 Keeping MCP cheap: tool search and output limits
+## 9.6 Keeping MCP cheap: tool search and output limits
 
 The hidden cost of MCP isn't the network round-trips. It's context. Every advertised tool definition the model has to read is competing with your actual work for window space. Claude Code's answer is tool search.
 
@@ -358,7 +358,7 @@ Large tool results are the other context drain. Claude Code warns when any MCP t
 
 ---
 
-## 8.7 Code execution with MCP (the scaling pattern)
+## 9.7 Code execution with MCP (the scaling pattern)
 
 For integrations with *many* tools and *large* results, Anthropic published a sharper pattern: present MCP servers as code APIs rather than direct tool calls, and let the agent write code that calls them. [^7]
 
@@ -383,7 +383,7 @@ Reach for it when the shape of the work demands it: high tool counts, large resu
 
 ---
 
-## 8.8 Supply-chain caution: review `.mcp.json` like code
+## 9.8 Supply-chain caution: review `.mcp.json` like code
 
 This is the section to internalize even if you skim the rest. A committed `.mcp.json` is executable supply chain. A pull request can add a server, and that server is either a command that runs on your machine with your privileges (stdio), or a remote endpoint that receives your data and can change its own tool list after you approve it (HTTP).
 
@@ -435,11 +435,11 @@ For org-wide control, administrators deploy a `managed-mcp.json` and/or allow/de
 
 ---
 
-## 8.9 When a senior should build a server
+## 9.9 When a senior should build a server
 
 Most of the time you *consume* MCP servers. You *build* one when the answer to all three is yes:
 
-1. **Is the capability genuinely external?** Live data or actions in a system Claude can't reach from the repo (your prod DB, an internal service, a SaaS API). If it's knowledge or a procedure, build a **skill**. If it's isolation, use a **subagent** (Ch. 07). [^3]
+1. **Is the capability genuinely external?** Live data or actions in a system Claude can't reach from the repo (your prod DB, an internal service, a SaaS API). If it's knowledge or a procedure, build a **skill**. If it's isolation, use a **subagent** (Ch. 08). [^3]
 2. **Is it reusable across sessions, teammates, and hosts?** MCP's payoff is a stable, discoverable, *portable* interface: an MCP server works in any MCP host (Claude Code, Desktop, Cursor, VS Code) because MCP is an open standard. If it's a one-off, a `Bash` call or a script is cheaper. [^2]
 3. **Does the protocol overhead pay for itself?** A server means an SDK, a transport, lifecycle, (for remote) OAuth, and a tool surface to maintain. For a handful of internal calls behind a CLI you already trust, that's overhead without return.
 
@@ -464,7 +464,7 @@ Most of the time you *consume* MCP servers. You *build* one when the answer to a
 
 ---
 
-## 8.10 Mastery checklist
+## 9.10 Mastery checklist
 
 - [ ] You can state the **one-line heuristic** ("stop pasting, connect a server") and the four-way split (MCP=access vs skill=expertise vs subagent=isolation vs hook=guardrail).
 - [ ] You can name the three server primitives **by who controls them** (tool=model, resource=app/user, prompt=user) and how each surfaces in Claude Code (`mcp__s__t`, `@s:proto://path`, `/mcp__s__prompt`).

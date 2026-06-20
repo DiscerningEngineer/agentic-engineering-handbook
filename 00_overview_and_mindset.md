@@ -103,7 +103,7 @@ If you are earlier in your career you can still use this, with one thing kept in
 
 - **Read this chapter first, then jump.** This chapter is the only one that's load-bearing for the rest. After this, the book is modular, so go to the mechanism you need.
 - **Treat every version-pinned claim as perishable.** Claude Code ships near-daily and the model lineup churns; we flag version-sensitivity inline, but the durable layer is the mindset and the patterns, not the specific flag names. When a command or behavior matters, verify it against the live docs and changelog (`https://code.claude.com/docs/en/changelog.md`) and the live models and pricing pages. We deliberately avoid quoting fixed prices or benchmark scores because they drift.
-- **Build the verification loop before you scale the throughput.** Nearly every later chapter is in service of this chapter's thesis. TDD with agents and adversarial review live in Ch. 11; context and compaction in Ch. 02; memory in Ch. 03; checkpoints and rewind in Ch. 04; subagents in Ch. 07; multi-agent orchestration in Ch. 10. The sequencing reflects the thesis: trust first, then leverage.
+- **Build the verification loop before you scale the throughput.** Nearly every later chapter is in service of this chapter's thesis. TDD with agents and adversarial review live in Ch. 12; context and compaction in Ch. 02; memory in Ch. 03; checkpoints and rewind in Ch. 04; subagents in Ch. 08; multi-agent orchestration in Ch. 11. The sequencing reflects the thesis: trust first, then leverage.
 ---
 
 ## Chapter Summary -- The Mindset in Five Lines

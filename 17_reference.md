@@ -1,4 +1,4 @@
-# Chapter 16 -- Reference: Decision Tables, Commands and Glossary
+# Chapter 17 -- Reference: Decision Tables, Commands and Glossary
 
 **TL;DR.** This is the chapter you keep open in a second pane. Three decision tables turn the judgment calls from earlier chapters into lookups: which extension mechanism (hook vs. skill vs. MCP vs. subagent vs. memory), which model and effort level, and which verification pattern. A slash-command quick reference covers the built-in and bundled commands, grouped by the point in a session where you reach for it, with version flags on the ones that shipped recently. A glossary defines the vocabulary the rest of the handbook leans on. The whole thing is perishable. Claude Code ships near-daily, model names churn, prices drift. Treat it as a snapshot taken 2026-06-18 against Claude Code ~v2.1.181, and verify anything load-bearing against the live changelog (`/release-notes` or `code.claude.com/docs/en/changelog`) and the live models and pricing pages before you teach it or pin it in a runbook. [^1]
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 16.1 Decision Table A -- Which Extension Mechanism?
+## 17.1 Decision Table A -- Which Extension Mechanism?
 
 The most common architecture mistake is reaching for the wrong primitive: building an MCP server when a skill would do, or stuffing a guardrail into `CLAUDE.md` where the model can talk its way around it. The five primitives sort cleanly by what they actually are. A hook fires as deterministic code at a lifecycle event. A skill is a directory containing a `SKILL.md` that gives the agent additional capabilities it applies itself. MCP is the open standard that connects the agent to external systems. A subagent isolates context-heavy work in its own window. Memory (`CLAUDE.md` and rules) carries static conventions as context. The mature move is to compose them. [^2]
 
@@ -17,7 +17,7 @@ The most common architecture mistake is reaching for the wrong primitive: buildi
 | A rule that must **always** hold, no exceptions | **Hook** (deterministic command hook on `PreToolUse`) | Hooks fire as code at lifecycle events -- the model can't reason its way past them. `PreToolUse` blocks with exit code 2. Skills and `CLAUDE.md` are *context*: persuasive, not enforced (see Ch. 03). [^3] |
 | Reusable **knowledge or a procedure** Claude should apply itself | **Skill** (`SKILL.md` folder) | Progressive disclosure means it costs ~nothing until invoked: only the name and description live in context until Claude judges the skill relevant. A skill is "a directory containing a `SKILL.md` file." [^2] |
 | Access to an **external system or live data** | **MCP server** | MCP is the connector layer, "a USB-C port for AI applications." A skill is instructions, not a live connection. [^4] |
-| **Isolated or parallel** work whose verbose output shouldn't pollute the main window | **Subagent** | A subagent runs in its own context window and returns only a summary. Context isolation *is* the feature (see Ch. 07). [^5] |
+| **Isolated or parallel** work whose verbose output shouldn't pollute the main window | **Subagent** | A subagent runs in its own context window and returns only a summary. Context isolation *is* the feature (see Ch. 08). [^5] |
 | **Sustained** multi-stream parallelism with peer coordination | **Agent team** or a **dynamic workflow** | Subagents are subordinate (results flow back to a lead); agent teams are peers; dynamic workflows orchestrate work across tens to hundreds of background agents. [^1] |
 | **Static project conventions** (build/test commands, architecture map, hard rules) | **`CLAUDE.md` + `.claude/rules/`** | Loaded as context every session; a `paths`-scoped rule defers its cost until Claude touches matching files (see Ch. 03). [^6] |
 | A trigger that runs **automatically on a schedule** | **Routine** (`/schedule`) or **`/loop`** | `/schedule` runs on Anthropic-managed cloud cron; `/loop` repeats while the local session stays open. [^7] |
@@ -32,13 +32,13 @@ Skill vs. slash command is barely a distinction at all. Custom commands were mer
 
 Hook vs. skill is the question of whether you can afford to be wrong. If the consequence of the model ignoring the rule is unacceptable (a force-push to `main`, a `DROP TABLE`, a secret walking out the door), use a deterministic hook. It blocks at `PreToolUse` with exit code 2 and there's no talking it out of that. If the rule is a preference the model should usually honor, like style or naming, a skill or a `CLAUDE.md` line is right and cheaper. The litmus is simple: could a clever rationalization in the transcript defeat this? If yes, and that matters, it's a hook. [^3]
 
-Subagent vs. agent team vs. workflow is a question of shape. A subagent is one isolated, subordinate task that reports back, and it's the cheapest of the three. An agent team is multiple peer sessions with a shared task list and peer messaging, still experimental, costing roughly Nx tokens, with diminishing returns past three to five. A dynamic workflow orchestrates tens to hundreds of background agents with handoff, watchable via `/workflows` (v2.1.154+). [^1] Mind the depth ceiling: subagents can spawn subagents up to a fixed five-level depth, where a subagent at depth five no longer receives the Agent tool and cannot spawn further (v2.1.172+), and the auto-mode classifier now evaluates each subagent's task before it spawns (v2.1.178+). The mechanics live in Ch. 07. [^5]
+Subagent vs. agent team vs. workflow is a question of shape. A subagent is one isolated, subordinate task that reports back, and it's the cheapest of the three. An agent team is multiple peer sessions with a shared task list and peer messaging, still experimental, costing roughly Nx tokens, with diminishing returns past three to five. A dynamic workflow orchestrates tens to hundreds of background agents with handoff, watchable via `/workflows` (v2.1.154+). [^1] Mind the depth ceiling: subagents can spawn subagents up to a fixed five-level depth, where a subagent at depth five no longer receives the Agent tool and cannot spawn further (v2.1.172+), and the auto-mode classifier now evaluates each subagent's task before it spawns (v2.1.178+). The mechanics live in Ch. 08. [^5]
 
-> **Decomposition is the lever, not agent count.** The orchestration win comes from carving a task into independent pieces that don't duplicate each other's work -- parallelize what's independent, serialize anything with sequential dependencies or same-file edits. Reaching for more agents on a task that won't decompose cleanly just multiplies the token bill. The numbers behind this, and the full treatment, are in Ch. 10.
+> **Decomposition is the lever, not agent count.** The orchestration win comes from carving a task into independent pieces that don't duplicate each other's work -- parallelize what's independent, serialize anything with sequential dependencies or same-file edits. Reaching for more agents on a task that won't decompose cleanly just multiplies the token bill. The numbers behind this, and the full treatment, are in Ch. 11.
 
 ---
 
-## 16.2 Decision Table B -- Which Model and Effort Level?
+## 17.2 Decision Table B -- Which Model and Effort Level?
 
 Two dials govern cost and capability, and they're independent. Model is the tier. Effort is how much the model thinks per turn. They compose. The mid-2026 lineup churns fast enough that you should verify model IDs, context windows, and prices against the live models and pricing pages before pinning anything. [^9]
 
@@ -91,20 +91,20 @@ Modern models use adaptive thinking. Depth is decided per step, governed by `eff
 
 ---
 
-## 16.3 Decision Table C -- Which Verification Pattern?
+## 17.3 Decision Table C -- Which Verification Pattern?
 
-As agents generate more code, the human's job shifts from author to reviewer and verifier, and verification becomes the load-bearing skill. The pattern you pick depends on what kind of correctness signal you can get and how much it matters. The patterns themselves live in Ch. 11; this table is the lookup. [^13]
+As agents generate more code, the human's job shifts from author to reviewer and verifier, and verification becomes the load-bearing skill. The pattern you pick depends on what kind of correctness signal you can get and how much it matters. The patterns themselves live in Ch. 12; this table is the lookup. [^13]
 
 ### The lookup
 
 | Situation | Pattern | How |
 |---|---|---|
-| Tests exist or are writable | **TDD loop** | Have Claude write tests from the spec *first*, confirm they fail, then implement to green. Hallucinated signatures fail at test time, not in prod (Ch. 11). [^13] |
-| High-stakes correctness | **Adversarial generator + reviewer** | A separate agent tasked to break the code catches more than self-review. Different agent, different prompt, hostile stance (Ch. 11). |
+| Tests exist or are writable | **TDD loop** | Have Claude write tests from the spec *first*, confirm they fail, then implement to green. Hallucinated signatures fail at test time, not in prod (Ch. 12). [^13] |
+| High-stakes correctness | **Adversarial generator + reviewer** | A separate agent tasked to break the code catches more than self-review. Different agent, different prompt, hostile stance (Ch. 12). |
 | Multi-dimension quality (security / perf / coverage / regression) | **Parallel specialized verifiers** | One agent per dimension, lead synthesizes. This is how managed Code Review works: "multiple agents analyze the diff and surrounding code in parallel ... then a verification step checks candidates against actual code behavior to filter out false positives." [^14] |
 | Automated PR gate | **Managed Code Review / `/code-review`** | `/code-review` locally (with `--fix`, `--comment`, effort levels, targeting), or the managed GitHub app for inline severity comments on every PR. [^14] |
 | Cleanup without bug-hunting | **`/simplify`** | From v2.1.154, `/simplify` runs a cleanup-only review (four agents: reuse, simplification, efficiency, altitude) and applies fixes -- it does *not* hunt for correctness bugs. Use `/code-review` for bugs. [^14] |
-| Long autonomous run | **Milestone verification (tests as oracle)** | Verify every milestone against the suite; advance only on green (Ch. 11). |
+| Long autonomous run | **Milestone verification (tests as oracle)** | Verify every milestone against the suite; advance only on green (Ch. 12). |
 | "Did the change actually work in the app?" | **`/verify` / `/run`** | Build and drive the running app to observe real behavior, not just tests or type checks (v2.1.145+). [^8] |
 
 ### Code Review internals worth knowing
@@ -121,11 +121,11 @@ Effort tunes the precision/recall trade. Lower effort returns fewer, higher-conf
 
 > **Version and availability flags.** Local `/code-review` reporting cleanups (not just bugs) requires v2.1.151+; the command was named `/simplify` before v2.1.147 and behaved differently. The managed GitHub Code Review is a **research preview**, Team/Enterprise only, and **not available with Zero Data Retention**. Anthropic's own figure is that each managed review averages $15-25 and completes in about 20 minutes, scaling with PR size and complexity -- check your analytics dashboard for your actual spend. [^14]
 
-> **The verifier must be near-flawless.** The lesson from Anthropic's parallel-Claudes C-compiler work, stated plainly: "it's important that the task verifier is nearly perfect, otherwise Claude will solve the wrong problem." Pick the pattern in this table by how trustworthy a correctness signal you can build, because the leverage of autonomous generation is bounded by the fidelity of the check. The case study and its figures are in Ch. 11. [^15]
+> **The verifier must be near-flawless.** The lesson from Anthropic's parallel-Claudes C-compiler work, stated plainly: "it's important that the task verifier is nearly perfect, otherwise Claude will solve the wrong problem." Pick the pattern in this table by how trustworthy a correctness signal you can build, because the leverage of autonomous generation is bounded by the fidelity of the check. The case study and its figures are in Ch. 12. [^15]
 
 ---
 
-## 16.4 Permission Modes Reference
+## 17.4 Permission Modes Reference
 
 Permission modes set the baseline for what runs without asking. Layer allow/ask/deny rules on top with `/permissions`, and know that deny and explicit ask rules apply in every mode, including `bypassPermissions`. Cycle with `Shift+Tab` (`default` -> `acceptEdits` -> `plan`, with optional modes slotting in after `plan`), set at startup with `--permission-mode`, or persist via `defaultMode` in settings. [^16]
 
@@ -162,7 +162,7 @@ Broad allow rules are dropped on entry (`Bash(*)`, wildcarded interpreters, pack
 
 ---
 
-## 16.5 Slash-Command Quick Reference
+## 17.5 Slash-Command Quick Reference
 
 Type `/` to see what's available in your install. Availability varies by platform, plan, and environment. A command is only recognized at the start of a message; text after it is passed as arguments (`<arg>` required, `[arg]` optional). Entries marked **[Skill]** are bundled skills (a prompt Claude can also auto-invoke); **[Workflow]** entries fan work across many background subagents. [^7]
 
@@ -251,13 +251,13 @@ For scripted pipelines, the relevant surface is launch flags, not in-session com
 
 ---
 
-## 16.6 Glossary
+## 17.6 Glossary
 
 Terms are defined as used across this handbook. Where a term is version- or vendor-specific, that's flagged.
 
 **Adaptive thinking** -- The reasoning mode where the model decides depth per step, governed by the `effort` setting, rather than a fixed token budget. The only mode on Opus 4.7+ and Fable 5 (thinking can't be disabled there); recommended but optional on Opus 4.6 and Sonnet 4.6. Replaces the deprecated `budget_tokens` parameter. (`ultrathink` is a per-turn in-context nudge in Claude Code that does not change API effort; see Ch. 05.) [^12]
 
-**Agent team** -- An experimental mode (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) where multiple *peer* sessions share a task list and message each other, each with a full independent context window. Distinct from subagents (which are subordinate). Costs ~Nx tokens; diminishing returns past 3-5 agents (Ch. 07). [^17]
+**Agent team** -- An experimental mode (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) where multiple *peer* sessions share a task list and message each other, each with a full independent context window. Distinct from subagents (which are subordinate). Costs ~Nx tokens; diminishing returns past 3-5 agents (Ch. 08). [^17]
 
 **`AGENTS.md`** -- A tool-agnostic project-instructions file read by many agents. Claude Code reads `CLAUDE.md`, not `AGENTS.md`, so if a repo uses it, point `CLAUDE.md` at it with `@AGENTS.md` (or `/init`, which incorporates an existing `AGENTS.md`). [^6]
 
@@ -285,15 +285,15 @@ Terms are defined as used across this handbook. Where a term is version- or vend
 
 **Compaction** -- Summarizing conversation history to free context (`/compact`, or server-side compaction in the API). Project-root `CLAUDE.md` survives it (re-read from disk); conversation-only instructions may not (Ch. 02). [^6]
 
-**Dynamic workflow** -- A bundled orchestration (v2.1.154+) that fans work across tens to hundreds of background agents with parallel execution and handoff; watchable via `/workflows`. The `ultracode` setting triggers automatic workflow orchestration (Ch. 10). [^1]
+**Dynamic workflow** -- A bundled orchestration (v2.1.154+) that fans work across tens to hundreds of background agents with parallel execution and handoff; watchable via `/workflows`. The `ultracode` setting triggers automatic workflow orchestration (Ch. 11). [^1]
 
 **Effort** -- The primary reasoning-depth-and-spend dial (`low`/`medium`/`high`/`xhigh`/`max`, plus `ultracode`), set with `/effort` or in the `/model` picker. Composes with model choice; available levels depend on the model (`xhigh` only on Fable 5, Opus 4.8, Opus 4.7; Haiku 4.5 has no effort dial at all). [^10]
 
-**Fork** -- A subagent that *inherits the full parent conversation* (`/fork`, default v2.1.161+), reusing the parent's prompt cache -- cheaper for same-context side tasks. A fork can't fork (Ch. 07). [^5]
+**Fork** -- A subagent that *inherits the full parent conversation* (`/fork`, default v2.1.161+), reusing the parent's prompt cache -- cheaper for same-context side tasks. A fork can't fork (Ch. 08). [^5]
 
 **Headless mode** -- Running Claude Code non-interactively with `claude -p`, with `--output-format`, `--json-schema`, and `--bare`. The backbone of CI and scripted agent pipelines. [^7]
 
-**Hook** -- A command/HTTP/MCP-tool/prompt/agent handler that fires deterministically at lifecycle events (`PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionStart`, and others). The mechanism for rules that must always hold -- guardrails the model can't reason past. `PreToolUse` can block (exit code 2); `PostToolUse` can't, because the tool already ran (Ch. 09). [^3]
+**Hook** -- A command/HTTP/MCP-tool/prompt/agent handler that fires deterministically at lifecycle events (`PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `SessionStart`, and others). The mechanism for rules that must always hold -- guardrails the model can't reason past. `PreToolUse` can block (exit code 2); `PostToolUse` can't, because the tool already ran (Ch. 10). [^3]
 
 **Just-in-time retrieval** -- Anthropic's default context strategy: keep lightweight identifiers (paths, queries, links) and load data at runtime, letting an agent work over a codebase larger than its window. Contrast with front-loading (root `CLAUDE.md` and `@`-imports, which load in full at start) (Ch. 02). [^21]
 
@@ -315,9 +315,9 @@ Terms are defined as used across this handbook. Where a term is version- or vend
 
 **Skill** -- A folder (`SKILL.md` + optional scripts/resources) packaging procedural knowledge that loads just-in-time via progressive disclosure. Follows the open Agent Skills standard. Invoked by `/name` or semantic auto-match on the description. [^8]
 
-**Subagent** -- A specialized assistant with its *own* context window, system prompt, tools, model, and permissions, that works independently and returns only a summary. Context isolation is the point. Defined in `.claude/agents/` (project) or `~/.claude/agents/` (user). Can nest up to five levels deep (v2.1.172+) (Ch. 07). [^5]
+**Subagent** -- A specialized assistant with its *own* context window, system prompt, tools, model, and permissions, that works independently and returns only a summary. Context isolation is the point. Defined in `.claude/agents/` (project) or `~/.claude/agents/` (user). Can nest up to five levels deep (v2.1.172+) (Ch. 08). [^5]
 
-**Verification** -- Confirming generated code is correct, by tests, adversarial review, specialized verifiers, or running the app (`/verify`). The load-bearing human skill in the agent era -- and only as strong as the verifier itself (Ch. 11). [^13]
+**Verification** -- Confirming generated code is correct, by tests, adversarial review, specialized verifiers, or running the app (`/verify`). The load-bearing human skill in the agent era -- and only as strong as the verifier itself (Ch. 12). [^13]
 
 **Worktree** -- An isolated git working directory + branch sharing the repo's history, used to run parallel sessions/subagents without file collisions. `/batch` and `isolation: worktree` use these. [^24]
 

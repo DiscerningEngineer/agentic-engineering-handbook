@@ -1,4 +1,4 @@
-# Chapter 06 -- Agent Skills
+# Chapter 07 -- Agent Skills
 
 **TL;DR.** A skill is a folder. It holds a `SKILL.md` plus whatever optional scripts and reference files the job calls for, and it packages procedural knowledge that loads just-in-time. Only the `name` and `description` sit in context at all times, which is cheap, around 100 tokens per skill. The body loads when the skill is invoked. The bundled files load only when something references them, and they cost zero until then. That progressive disclosure is the entire point. Skills follow an open standard published at agentskills.io, and they travel across claude.ai, Claude Code, the Claude Agent SDK, and the Claude Developer Platform. Custom commands have been merged into skills, so `.claude/commands/deploy.md` and `.claude/skills/deploy/SKILL.md` both create `/deploy`. The mastery lives in the details: the frontmatter knobs (`disable-model-invocation`, `user-invocable`, `allowed-tools`/`disallowed-tools`, `context: fork`, `paths`, `model`/`effort`), the **lifecycle gotcha** (an invoked skill enters context once and is not re-read each turn, so you write standing instructions, not "do this now"), and knowing when to reach for a skill versus a command, an MCP server, or a subagent.
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 6.1 What a skill is (and why it exists)
+## 7.1 What a skill is (and why it exists)
 
 A skill starts as a recurring annoyance. You keep pasting the same instructions, the same checklist, the same multi-step procedure into chat. Or a section of `CLAUDE.md` has quietly grown from a fact into a procedure while you weren't watching. [^1] Capture that procedure once as a folder, and Claude adds it to its toolkit. `CLAUDE.md` content loads in full every session and costs tokens forever; a skill's body loads only when used, so long reference material costs almost nothing until you need it. [^1]
 
@@ -18,7 +18,7 @@ Skills are an open standard. Anthropic first shipped Agent Skills on October 16,
 
 ### Skills, tools, MCP, and prompts are different things
 
-Keep the categories distinct (full decision table in section 6.8):
+Keep the categories distinct (full decision table in section 7.8):
 
 - **Skills** are procedural knowledge Claude applies itself: workflows, conventions, checklists, domain expertise, loaded on demand. They complement MCP, teaching the agent the more complex workflows that involve external tools and software. [^2]
 - **MCP** integrates external tools and live systems (GitHub, databases, Slack).
@@ -26,7 +26,7 @@ Keep the categories distinct (full decision table in section 6.8):
 
 ---
 
-## 6.2 Anatomy and progressive disclosure
+## 7.2 Anatomy and progressive disclosure
 
 Every skill is a directory with `SKILL.md` as the required entrypoint. Everything else is optional: [^1]
 
@@ -65,7 +65,7 @@ How you intend to invoke a skill should shape what you put in it: [^1]
 
 ---
 
-## 6.3 Invocation: how a skill gets triggered
+## 7.3 Invocation: how a skill gets triggered
 
 Two paths, and the distinction matters for authoring: [^1]
 
@@ -88,14 +88,14 @@ The plugin-root case is the one place `name` sets the command, because there's n
 
 ---
 
-## 6.4 The complete frontmatter reference
+## 7.4 The complete frontmatter reference
 
 All fields are optional; only `description` is recommended, so Claude knows when to use the skill. [^1] This table consolidates the Claude Code frontmatter reference, and the senior-relevant nuances are spelled out beneath it.
 
 | Field | Purpose |
 |-------|---------|
 | `name` | Display label in listings; defaults to directory name. **Does not** set the `/` command for non-plugin-root skills. |
-| `description` | What the skill does and when to use it. Drives auto-invocation. If omitted, the first paragraph of the body is used. **Put the key use case first** -- it gets truncated (see section 6.7). |
+| `description` | What the skill does and when to use it. Drives auto-invocation. If omitted, the first paragraph of the body is used. **Put the key use case first** -- it gets truncated (see section 7.7). |
 | `when_to_use` | Extra trigger phrases / example requests, appended to `description` in the listing. Counts toward the same listing cap. |
 | `argument-hint` | Autocomplete hint, e.g. `[issue-number]` or `[filename] [format]`. |
 | `arguments` | Named positional args for `$name` substitution. Space-separated string or YAML list; names map to positions in order. |
@@ -105,9 +105,9 @@ All fields are optional; only `description` is recommended, so Claude knows when
 | `disallowed-tools` | Tools removed from the pool while the skill is active. Clears on your next message. (Added v2.1.152.) [^6] |
 | `model` | Model to use while active (`/model` values, or `inherit`). Applies for the rest of the current turn only; session model resumes next prompt. |
 | `effort` | Reasoning depth while active: `low`/`medium`/`high`/`xhigh`/`max` (availability depends on model). Overrides session effort. |
-| `context` | `fork` -> run the skill in a forked subagent context. See section 6.6. |
+| `context` | `fork` -> run the skill in a forked subagent context. See section 7.6. |
 | `agent` | Which subagent type to use when `context: fork` is set (`Explore`, `Plan`, `general-purpose`, or a custom agent). Defaults to `general-purpose`. |
-| `hooks` | Hooks scoped to this skill's lifecycle (see Ch. 09). |
+| `hooks` | Hooks scoped to this skill's lifecycle (see Ch. 10). |
 | `paths` | Glob patterns that gate auto-activation: the skill loads automatically only when working on matching files. Same format as path-specific memory rules. |
 | `shell` | `bash` (default) or `powershell` for inline `` !`cmd` `` execution (PowerShell requires `CLAUDE_CODE_USE_POWERSHELL_TOOL=1`). |
 
@@ -144,7 +144,7 @@ allowed-tools: Bash(git add *) Bash(git commit *) Bash(git status *)
 ---
 ```
 
-Security corollary: for skills checked into a project's `.claude/skills/`, `allowed-tools` only takes effect after you accept the workspace-trust dialog, the same gate that governs `.claude/settings.json` permission rules. A skill can grant itself broad tool access, so review project skills before trusting a repo (more in section 6.9). [^1]
+Security corollary: for skills checked into a project's `.claude/skills/`, `allowed-tools` only takes effect after you accept the workspace-trust dialog, the same gate that governs `.claude/settings.json` permission rules. A skill can grant itself broad tool access, so review project skills before trusting a repo (more in section 7.9). [^1]
 
 You can also block skills wholesale through permissions. Deny the `Skill` tool to disable all skills, or use `Skill(name)` for an exact match and `Skill(name *)` for a prefix match to allow or deny specific ones. A handful of built-in commands (`/init`, `/review`, `/security-review`) are reachable through the Skill tool; most (like `/compact`) are not. [^1]
 
@@ -194,7 +194,7 @@ Mechanics worth knowing:
 
 ---
 
-## 6.5 Scopes, precedence, and lifecycle
+## 7.5 Scopes, precedence, and lifecycle
 
 ### Where skills live (and who wins)
 
@@ -241,7 +241,7 @@ Plugin skills aren't affected by `skillOverrides`; manage those via `/plugin`. [
 
 ---
 
-## 6.6 Running a skill in a subagent (`context: fork`)
+## 7.6 Running a skill in a subagent (`context: fork`)
 
 Add `context: fork` to run the skill in an isolated context. The skill content becomes the prompt that drives a subagent, with no access to your conversation history. [^1]
 
@@ -270,13 +270,13 @@ Skills and subagents pair in two directions, both valid: [^1]
 | **Skill with `context: fork`** | From the agent type | `SKILL.md` content | `CLAUDE.md`, except when the agent is `Explore`/`Plan` |
 | **Subagent with a `skills` field** | The subagent's markdown body | Claude's delegation message | Preloaded skills + `CLAUDE.md` |
 
-Critical caveat: `context: fork` only makes sense for skills that carry explicit instructions. If the skill is pure guidelines ("use these API conventions") with no actionable task, the subagent gets the guidelines and no prompt, and it returns nothing useful. [^1] Pairing `context: fork` with `agent: Explore` is the lean choice for read-only research: Explore and Plan skip `CLAUDE.md` and git status, so the fork sees only `SKILL.md` plus the agent's own system prompt. Minimal context, fast. [^1] (Subagent mechanics, built-ins, and nesting are the home of Ch. 07.)
+Critical caveat: `context: fork` only makes sense for skills that carry explicit instructions. If the skill is pure guidelines ("use these API conventions") with no actionable task, the subagent gets the guidelines and no prompt, and it returns nothing useful. [^1] Pairing `context: fork` with `agent: Explore` is the lean choice for read-only research: Explore and Plan skip `CLAUDE.md` and git status, so the fork sees only `SKILL.md` plus the agent's own system prompt. Minimal context, fast. [^1] (Subagent mechanics, built-ins, and nesting are the home of Ch. 08.)
 
 > Note: subagent preload behaves differently from a normal session. In a regular session only the description sits in context until invocation; for a subagent with preloaded skills, the full skill content is injected at startup. `disable-model-invocation: true` also blocks a skill from being preloaded into subagents. [^1]
 
 ---
 
-## 6.7 The two character limits (a real source of confusion)
+## 7.7 The two character limits (a real source of confusion)
 
 Two different limits, two different mechanisms. Both are real, and they look like they conflict until you pull them apart:
 
@@ -290,7 +290,7 @@ The practical guidance reconciles both: keep the description well under 1024 cha
 
 ---
 
-## 6.8 Skill vs command vs MCP vs subagent -- the decision
+## 7.8 Skill vs command vs MCP vs subagent -- the decision
 
 Anthropic's framing, distilled: MCP gives access to external systems; a skill is procedural knowledge Claude applies itself; a subagent is isolated, context-heavy work; a slash command is now a skill with fewer features, since commands were merged into skills. [^1] The engineering framing is that skills complement MCP by teaching agents the more complex workflows that involve external tools and software, so the right move is usually to compose them. [^2]
 
@@ -303,7 +303,7 @@ Anthropic's framing, distilled: MCP gives access to external systems; a skill is
 | A rule that must always hold, no matter what | **Hook** | Skills can be ignored by the model; hooks are deterministic |
 | Static project conventions every session | **CLAUDE.md / path-scoped rules** | Always-on facts, not procedures |
 
-The move is to compose these, not pick one. A slash command (skill) can spell out that it should spin up a subagent and call a particular MCP tool, pipelining the whole job. [^1] A skill is excellent for auto-applying a richer workflow with supporting files; reserve subagents for genuine parallelism or context isolation, since each one runs its own window (subagent cost and orchestration are covered in Ch. 07 and Ch. 10).
+The move is to compose these, not pick one. A slash command (skill) can spell out that it should spin up a subagent and call a particular MCP tool, pipelining the whole job. [^1] A skill is excellent for auto-applying a richer workflow with supporting files; reserve subagents for genuine parallelism or context isolation, since each one runs its own window (subagent cost and orchestration are covered in Ch. 08 and Ch. 11).
 
 **Heuristic flowchart:**
 - Is it knowledge or a procedure you keep re-explaining? Reach for a **skill**. Front-load only the trigger phrasing; push detail into bundled files.
@@ -314,7 +314,7 @@ The move is to compose these, not pick one. A slash command (skill) can spell ou
 
 ---
 
-## 6.9 Bundled skills
+## 7.9 Bundled skills
 
 Claude Code ships bundled skills, available in every session unless disabled with `disableBundledSkills` (or `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS=1`, added v2.1.169). Built-in commands run fixed logic; bundled skills are prompt-based, handing Claude detailed instructions and letting it orchestrate with its tools. You invoke them like any skill (`/name`). [^1] [^9]
 
@@ -338,7 +338,7 @@ The `/run` + `/verify` + `/run-skill-generator` trio earns a senior's attention.
 
 ---
 
-## 6.10 Authoring good skills
+## 7.10 Authoring good skills
 
 Anthropic's authoring guidance is unusually opinionated; here's the senior-grade distillation. [^10]
 
@@ -397,7 +397,7 @@ Core: description is specific with key terms and states what + when; body under 
 
 ---
 
-## 6.11 Security -- treat a skill like installing software
+## 7.11 Security -- treat a skill like installing software
 
 A skill grants Claude new capabilities through instructions and code, which is exactly why a malicious one is dangerous. It can direct Claude to invoke tools or run code in ways that have nothing to do with its stated purpose: data exfiltration, unauthorized access, tool misuse. Anthropic's posture is plain. Use skills only from trusted sources (your own, or Anthropic's), and audit any third-party skill thoroughly before use, reading every bundled file (SKILL.md, scripts, images) and watching for unexpected network calls or file access. Skills that fetch from external URLs deserve extra suspicion, since fetched content can carry injected instructions, and even a trustworthy skill can be compromised if its external dependencies change over time. [^4]
 
@@ -410,17 +410,17 @@ For a senior shipping in a team or regulated environment, three concrete control
 
 ---
 
-## 6.12 Troubleshooting quick reference
+## 7.12 Troubleshooting quick reference
 
 | Symptom | Fix |
 |---------|-----|
 | Skill never triggers | Add the keywords users actually say to `description`; confirm via "What skills are available?"; rephrase the request; or invoke directly with `/name`. [^12] |
 | Skill triggers too often | Make `description` more specific; or `disable-model-invocation: true` for manual-only. [^12] |
-| Skill "stops working" after the first turn | Content is usually still there -- strengthen `description`/instructions, enforce with a hook, or re-invoke after compaction. (See section 6.5 lifecycle.) [^12] |
+| Skill "stops working" after the first turn | Content is usually still there -- strengthen `description`/instructions, enforce with a hook, or re-invoke after compaction. (See section 7.5 lifecycle.) [^12] |
 | Descriptions look truncated | Run `/doctor`; raise `skillListingBudgetFraction`; set low-priority skills to `"name-only"`; put the key use case first in `description`. [^12] |
 | New skill not picked up | If you created a top-level skills dir mid-session, restart; otherwise edits hot-reload. Try `/reload-skills`. [^12] |
 | Plugin skill loads even with `disable-model-invocation` | Known version-sensitive bug (issue #22345, v2.1.29, still open) -- verify current behavior. [^13] |
-| `/skill-name` vs `/dir:skill-name` confusion | Command name comes from the path, not frontmatter `name`; nested clashes get a `dir:name` qualifier. (See section 6.3.) [^12] |
+| `/skill-name` vs `/dir:skill-name` confusion | Command name comes from the path, not frontmatter `name`; nested clashes get a `dir:name` qualifier. (See section 7.3.) [^12] |
 
 `/doctor` and the [Debug your configuration](https://code.claude.com/docs/en/debug-your-config) page diagnose why a skill isn't appearing or triggering. [^1]
 

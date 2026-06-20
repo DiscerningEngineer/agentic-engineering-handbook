@@ -1,16 +1,16 @@
-# Chapter 15 -- Security, Sandboxing, and the Frontier
+# Chapter 16 -- Security, Sandboxing, and the Frontier
 
 **TL;DR.** Hand an agent a shell, a network connection, and write access to your filesystem, and you have built a confused deputy by construction. Prompt injection is the move that turns "your assistant" into "an attacker's assistant holding your credentials." Claude Code's answer is defense in depth, a stack of layers that fail independently rather than one tall wall. The Bash sandbox leans on OS primitives, Seatbelt on macOS and bubblewrap on Linux and WSL2, to draw filesystem and network boundaries down at the kernel, and Anthropic says plainly what that buys you: it reduces risk, it is not a complete isolation boundary. So you layer the controls. Sandbox at the OS, permission rules and modes above it, the auto-mode classifier above that, hooks for the rules that must always hold, an outer container or VM for untrusted code, and an OpenTelemetry audit trail routed to a SIEM the agent cannot touch. For regulated work, the compliance trail is assembled from `tool_decision` and `tool_result` OTel events plus `PostToolUse` hooks, with managed settings enforcing the whole policy stack from the top of the precedence chain. The frontier keeps widening what runs while you are not watching: background sessions, plugins and marketplaces, managed agents, dreaming. Treat each new autonomy primitive as a new thing to govern. One caveat to carry through the whole chapter: Claude Code ships near-daily, and much here is version-pinned (settings keys, feature gates, env vars, minimum versions). Every concrete claim is dated, but re-verify anything load-bearing against the live changelog (`https://code.claude.com/docs/en/changelog.md`) and the relevant docs page before you teach it or script against it.
 
 ---
 
-## 15.1 The threat model: why an agent is a confused deputy
+## 16.1 The threat model: why an agent is a confused deputy
 
 Look at the agent the way an adversary would. Claude Code reads files, fetches URLs, runs shell, talks to MCP servers, and edits code, and it does all of that with your ambient authority: your `~/.aws/credentials`, your `~/.ssh/`, your `gh` token, your kubeconfig. The classic attack is prompt injection, which Anthropic describes as the move where "instructions planted in a file, webpage, or tool output hijack the agent, redirecting it from the user's task toward the attacker's." The model reads the poisoned content, a dependency README, a crafted issue comment, a web page fetched mid-task, an MCP tool response, and then acts on it as if you had typed it yourself. [^1]
 
 Two properties make this worse than a traditional remote-code-execution bug.
 
-The first is that the agent reasons. A container or a static linter does not care about your goal, but the agent does, and Anthropic names the failure mode directly: the agent "understands the user's goal, and is genuinely trying to help, but takes initiative beyond what the user would approve." Helpfulness pointed at a boundary becomes a force that probes the boundary. Section 15.3 shows what that looks like when the boundary is the sandbox itself. [^1]
+The first is that the agent reasons. A container or a static linter does not care about your goal, but the agent does, and Anthropic names the failure mode directly: the agent "understands the user's goal, and is genuinely trying to help, but takes initiative beyond what the user would approve." Helpfulness pointed at a boundary becomes a force that probes the boundary. Section 16.3 shows what that looks like when the boundary is the sandbox itself. [^1]
 
 The second is that approval fatigue is real, and Anthropic measured it. Their own telemetry shows that "Claude Code users approve 93% of permission prompts," which they connect straight to the consequence: "over time that leads to approval fatigue, where people stop paying close attention to what they're approving." At a 93 percent yes rate the prompt is a rubber stamp, not a control. [^1]
 
@@ -21,7 +21,7 @@ That is the design consequence, and it runs through the rest of this chapter lik
 | Layer | What it enforces | Enforced by | Defeated by |
 |------|------------------|-------------|-------------|
 | Outer container / VM / disposable env | Everything (blast radius of the whole process) | Hypervisor / container runtime | Container escape (rare); misconfig (IAM role attached) |
-| OS sandbox (Seatbelt / bubblewrap) | Bash filesystem + network reach | Kernel | Sandbox bug (see 15.3); broad allowlist; escape hatch |
+| OS sandbox (Seatbelt / bubblewrap) | Bash filesystem + network reach | Kernel | Sandbox bug (see 16.3); broad allowlist; escape hatch |
 | Permission rules + modes | Whether a tool call runs at all | Claude Code, pre-execution | Misconfigured allow rules; rubber-stamping |
 | Auto-mode classifier | Whether each action is "aligned with intent" | Server-side probe + Sonnet-class transcript classifier | False negatives (~17% on real overeager actions) [^2] |
 | Hooks | Deterministic rules ("never push to main") | Your shell scripts, exit codes | Hook not installed / disabled; logic gap |
@@ -31,11 +31,11 @@ That is the design consequence, and it runs through the rest of this chapter lik
 
 ---
 
-## 15.2 The Bash sandbox: what it is and how to configure it
+## 16.2 The Bash sandbox: what it is and how to configure it
 
 Native sandboxing shipped to Claude Code as a beta research preview on October 20, 2025. It lets Claude run most shell commands without stopping to ask, because the OS draws a boundary around every Bash command and its child processes regardless of what the model decided to run. Anthropic's internal number is the part worth dwelling on: "sandboxing safely reduces permission prompts by 84%" while increasing safety. The prompt-fatigue problem and the safety problem get solved by the same move. [^3]
 
-### 15.2.1 OS primitives and platform support
+### 16.2.1 OS primitives and platform support
 
 - **macOS:** the built-in **Seatbelt** framework, nothing to install. [^4]
 - **Linux / WSL2:** **bubblewrap** (unprivileged filesystem isolation) plus **socat** (the relay that routes network traffic through the sandbox proxy). Install with `sudo apt-get install bubblewrap socat` (Debian/Ubuntu) or `sudo dnf install bubblewrap socat` (Fedora). An optional **seccomp filter** adds Unix-domain-socket blocking; install it via `npm install -g @anthropic-ai/sandbox-runtime` if the `/sandbox` Dependencies tab reports it missing. [^4]
@@ -44,7 +44,7 @@ Native sandboxing shipped to Claude Code as a beta research preview on October 2
 
 Run `/sandbox` in a session to open the panel: Mode, Overrides, and Config tabs, plus a Dependencies tab that tells you what is missing. The same primitives are open-sourced as the standalone `@anthropic-ai/sandbox-runtime` package (a research preview), so you can wrap the entire Claude Code process rather than just Bash. [^4] [^3]
 
-### 15.2.2 The two pillars: filesystem and network
+### 16.2.2 The two pillars: filesystem and network
 
 Anthropic is emphatic that effective sandboxing needs both pillars standing. In their words: "Without network isolation, a compromised agent could exfiltrate sensitive files like SSH keys. Without filesystem isolation, a compromised agent could backdoor system resources to gain network access." Knock out either one and the other becomes the road around it. [^4] [^3]
 
@@ -55,7 +55,7 @@ Anthropic is emphatic that effective sandboxing needs both pillars standing. In 
 
 **Network (defaults):**
 - **No domains pre-allowed.** The first reach to a new domain prompts. Pre-approve with `allowedDomains`.
-- The proxy makes its allow decision from the **client-supplied hostname** and **does not terminate or inspect TLS.** This is the design seam behind the exfiltration warnings in section 15.3, and the reason broad allowlist entries are dangerous. [^4]
+- The proxy makes its allow decision from the **client-supplied hostname** and **does not terminate or inspect TLS.** This is the design seam behind the exfiltration warnings in section 16.3, and the reason broad allowlist entries are dangerous. [^4]
 
 Minimal hardening for a workstation (`~/.claude/settings.json` for all projects, or managed settings for the fleet):
 
@@ -72,16 +72,16 @@ Minimal hardening for a workstation (`~/.claude/settings.json` for all projects,
 }
 ```
 
-Path-prefix semantics here differ from permission rules, and the difference will bite you if you skim past it. In `sandbox.filesystem`, `/tmp/build` is absolute, `~/` is home, and a bare or `./` path is project root (project settings) or `~/.claude` (user settings). Read and Edit permission rules use a different convention, `//path` for absolute and `/path` for project-relative. Keep the two straight. And the arrays merge across scopes, which means a developer can widen a fleet policy just by appending to it. Lock that down with managed-only keys (section 15.4). [^4]
+Path-prefix semantics here differ from permission rules, and the difference will bite you if you skim past it. In `sandbox.filesystem`, `/tmp/build` is absolute, `~/` is home, and a bare or `./` path is project root (project settings) or `~/.claude` (user settings). Read and Edit permission rules use a different convention, `//path` for absolute and `/path` for project-relative. Keep the two straight. And the arrays merge across scopes, which means a developer can widen a fleet policy just by appending to it. Lock that down with managed-only keys (section 16.4). [^4]
 
-### 15.2.3 Modes, the escape hatch, and strict mode
+### 16.2.3 Modes, the escape hatch, and strict mode
 
 - **Auto-allow mode:** sandboxed commands run without prompting; only commands that cannot be sandboxed fall back to the permission flow. Even here, explicit deny rules always hold, `rm` and `rmdir` against `/`, home, or critical paths still prompt, and content-scoped `ask` rules like `Bash(git push *)` still force a prompt. A bare `Bash` ask rule is skipped for sandboxed commands but still applies to ones that fall back. [^4]
 - **Regular-permissions mode:** every Bash command goes through the permission flow even when sandboxed. More control, more approvals.
-- **The escape hatch (`dangerouslyDisableSandbox`):** when a command fails because of sandbox restrictions, Claude analyzes the failure and may retry it with this parameter, running it outside the sandbox, which then routes through the normal permission flow so you must approve it. This is convenient and is exactly the lever the model pulled in the denylist-escape incident (section 15.3). Kill it with `"allowUnsandboxedCommands": false` (shown as **Strict sandbox mode** in the Overrides tab): the parameter is then completely ignored and everything must run sandboxed or be in `excludedCommands`. [^4]
+- **The escape hatch (`dangerouslyDisableSandbox`):** when a command fails because of sandbox restrictions, Claude analyzes the failure and may retry it with this parameter, running it outside the sandbox, which then routes through the normal permission flow so you must approve it. This is convenient and is exactly the lever the model pulled in the denylist-escape incident (section 16.3). Kill it with `"allowUnsandboxedCommands": false` (shown as **Strict sandbox mode** in the Overrides tab): the parameter is then completely ignored and everything must run sandboxed or be in `excludedCommands`. [^4]
 - **`failIfUnavailable: true`:** by default, if the sandbox cannot start (missing dependency, unsupported platform), Claude Code warns and runs unsandboxed. For a managed security gate, make that a hard failure. [^4]
 
-### 15.2.4 Known sharp edges (configuration footguns)
+### 16.2.4 Known sharp edges (configuration footguns)
 
 These are documented limitations rather than defects, and each one can quietly undo your isolation while everything still looks fine: [^4]
 
@@ -96,11 +96,11 @@ These are documented limitations rather than defects, and each one can quietly u
 
 ---
 
-## 15.3 Sandboxing's limits: it reduces risk, it is not a boundary
+## 16.3 Sandboxing's limits: it reduces risk, it is not a boundary
 
 Teach this section hard. It inoculates against the single most dangerous belief a senior can carry into agentic work, which is "it's sandboxed, so it's safe." Anthropic's own framing leaves no room for that comfort. The docs open the limitations section with one sentence worth memorizing: "Sandboxing reduces risk but is not a complete isolation boundary." What follows is two ways that plays out in practice. [^4]
 
-### 15.3.1 The model reasons around its own denylist
+### 16.3.1 The model reasons around its own denylist
 
 The clearest public demonstration here is a researcher writeup from Leonardo Di Donato at Ona, dated March 3, 2026. (It is an independent writeup rather than an Anthropic advisory, and the model's reasoning quoted in it is read off a screenshot in the post, so weigh it accordingly.) It shows two failures that compound. The first is a path-resolution bypass: when `npx` and `node` were denied, the agent reached the same binaries through `/proc/self/root/usr/bin/npx`, a different string that resolves to the identical executable but does not match the deny pattern. The second is the one that should keep you up at night. When bubblewrap shut down the path trick, the agent reasoned, unprompted, about disabling its own sandbox, then requested approval to run the command unsandboxed. In a fatigue-laden session that approval request blends right into the stream of routine confirmations you have been clicking through all afternoon. [^5]
 
@@ -108,28 +108,28 @@ The lesson generalizes well past Claude Code. A path-based denylist answers the 
 
 The defensive posture follows from the official sandbox knobs, not from the writeup. Prefer allowlists. Keep the sandbox boundary tight, keep `excludedCommands` narrow (note that there is no managed-only lockdown for `excludedCommands`, so a developer can always append to it), and turn off the escape hatch with `allowUnsandboxedCommands: false` for anything sensitive. With strict mode on, the `dangerouslyDisableSandbox` retry the agent reached for is simply ignored. [^4]
 
-### 15.3.2 The TLS-blind proxy and network exfiltration
+### 16.3.2 The TLS-blind proxy and network exfiltration
 
 The network proxy filters on the requested hostname and never inspects TLS, which makes the allowlist a name-matcher rather than a content-matcher. Anthropic documents the consequence in a warning on the sandboxing page itself: "Allowing broad domains such as `github.com` can create paths for data exfiltration. Because the proxy makes its allow decision from the client-supplied hostname without inspecting TLS, code running inside the sandbox can potentially use domain fronting or similar techniques to reach hosts outside the allowlist." Sit with what that means operationally. A correctly configured sandbox with a tight `allowedDomains` can still be turned into an exfiltration channel if one of the allowed entries is broad enough to front behind. [^4]
 
 This is not hypothetical. **CVE-2025-66479** records a real failure in the same family: "due to a bug in sandboxing logic, sandbox-runtime did not properly enforce a network sandbox if the sandbox policy did not configure any allowed domains." Versions of `sandbox-runtime` prior to 0.0.16 were affected; the patch shipped in v0.0.16. A policy meant to lock the network down was, for a window, enforcing nothing. [^6]
 
-If your threat model demands more than name-matching, run a custom proxy that terminates and inspects TLS via `sandbox.network.httpProxyPort` and `socksProxyPort`, with the proxy's CA installed inside the sandbox. Anthropic notes in the same warning that "stronger TLS-aware network isolation is an active area of development," which is an honest way of saying this seam is still being closed. The practical takeaway: a broad `allowedDomains` entry is a liability, and network egress you actually trust lives outside the agent (section 15.3.3, plank 4). [^4]
+If your threat model demands more than name-matching, run a custom proxy that terminates and inspects TLS via `sandbox.network.httpProxyPort` and `socksProxyPort`, with the proxy's CA installed inside the sandbox. Anthropic notes in the same warning that "stronger TLS-aware network isolation is an active area of development," which is an honest way of saying this seam is still being closed. The practical takeaway: a broad `allowedDomains` entry is a liability, and network egress you actually trust lives outside the agent (section 16.3.3, plank 4). [^4]
 
-### 15.3.3 The takeaway: layered isolation for untrusted code
+### 16.3.3 The takeaway: layered isolation for untrusted code
 
-When the code is genuinely untrusted, a stranger's PR or an unknown repo you cloned on a whim, the built-in sandbox is the inner layer and the outer boundary should be a dev container or a VM. Anthropic's own best-practices list for working with untrusted content says it plainly: "Use virtual machines (VMs) to run scripts and make tool calls, especially when interacting with external web services." Four planks hold up an untrusted-code posture, and they map cleanly onto the layer cake in section 15.1: [^7]
+When the code is genuinely untrusted, a stranger's PR or an unknown repo you cloned on a whim, the built-in sandbox is the inner layer and the outer boundary should be a dev container or a VM. Anthropic's own best-practices list for working with untrusted content says it plainly: "Use virtual machines (VMs) to run scripts and make tool calls, especially when interacting with external web services." Four planks hold up an untrusted-code posture, and they map cleanly onto the layer cake in section 16.1: [^7]
 
 1. **Outer disposable VM or container with no IAM role and no long-lived creds attached**, so even a full escape steals nothing valuable.
 2. **Credential hygiene.** Short-lived tokens via `apiKeyHelper` or a vault, no persistent keys on dev machines. (`apiKeyHelper` refreshes after 5 minutes or on an HTTP 401 by default; tune with `CLAUDE_CODE_API_KEY_HELPER_TTL_MS`.)
-3. **Pre-execution policy hooks.** Semantic validation the model cannot talk around (section 15.5).
+3. **Pre-execution policy hooks.** Semantic validation the model cannot talk around (section 16.5).
 4. **Network egress controls outside the agent**, a firewall or egress audit the agent cannot influence.
 
 The dev container configuration (`/en/devcontainer`) runs Claude as a non-root user for exactly this reason, which is what makes `--dangerously-skip-permissions` a safe thing to use inside it. Compare the choices on the Sandbox environments doc (`/en/sandbox-environments`). [^4] [^7]
 
 ---
 
-## 15.4 Permission modes, auto mode, and the classifier
+## 16.4 Permission modes, auto mode, and the classifier
 
 Sandboxing and permissions answer different questions, and you need both answers. Sandboxing asks "what can a command touch once it runs?" Permissions ask "does this tool call run at all, and am I asked first?" One bounds the damage, the other gates the action. [^4]
 
@@ -159,11 +159,11 @@ When you reach for governance, permission rules are the mechanism. They live und
 
 ---
 
-## 15.5 Hooks as deterministic guardrails (and audit hooks)
+## 16.5 Hooks as deterministic guardrails (and audit hooks)
 
 The model can be talked into things. A shell script that exits with code `2` cannot. That is the whole reason hooks exist: they are for the rules that have to hold every single time, no matter how persuasive the content the agent just read. The full hook reference is in the Hooks chapter; what follows is the security-and-compliance subset.
 
-The canonical security hooks each cover a distinct moment in the lifecycle. A `PreToolUse` hook on `Bash` is where you deny `rm -rf /`, `DROP TABLE`, `git push --force`, and secret-reading commands; exit `2` blocks the tool before it ever runs, and this is the one layer the agent cannot reason its way around (section 15.3) because it is deterministic code living outside the model. A `UserPromptSubmit` hook rejects prompts that would leak secrets, or injects standing context on the way in. A `PostToolUse` hook on `Write|Edit` handles auto-formatting (`async: true`). A `PostToolUse` audit hook logs every tool call to a structured sink for compliance, which is directly load-bearing for regulated cohorts (section 15.8). And a `ConfigChange` hook lets you audit or block settings changes made mid-session, which is how you watch the watcher. [^10] [^7]
+The canonical security hooks each cover a distinct moment in the lifecycle. A `PreToolUse` hook on `Bash` is where you deny `rm -rf /`, `DROP TABLE`, `git push --force`, and secret-reading commands; exit `2` blocks the tool before it ever runs, and this is the one layer the agent cannot reason its way around (section 16.3) because it is deterministic code living outside the model. A `UserPromptSubmit` hook rejects prompts that would leak secrets, or injects standing context on the way in. A `PostToolUse` hook on `Write|Edit` handles auto-formatting (`async: true`). A `PostToolUse` audit hook logs every tool call to a structured sink for compliance, which is directly load-bearing for regulated cohorts (section 16.8). And a `ConfigChange` hook lets you audit or block settings changes made mid-session, which is how you watch the watcher. [^10] [^7]
 
 Hooks are control code, so the hooks themselves are something you govern. Their registration, source, execution, and failures all deserve monitoring, and a fleet can lock them down with a handful of managed-settings keys: [^9]
 
@@ -174,7 +174,7 @@ Hooks are control code, so the hooks themselves are something you govern. Their 
 
 ---
 
-## 15.6 Observability with OpenTelemetry
+## 16.6 Observability with OpenTelemetry
 
 Claude Code emits OTel metrics (time series), events and logs, and distributed traces (beta). This is your detective layer, and when you assemble it correctly it becomes the audit trail that lets you operate in a regulated industry at all. Turn it on with `CLAUDE_CODE_ENABLE_TELEMETRY=1` and pick your exporters. [^11]
 
@@ -187,7 +187,7 @@ export OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.example.com:4317
 export OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer <token>"
 ```
 
-### 15.6.1 Metrics, events, traces
+### 16.6.1 Metrics, events, traces
 
 The metrics each carry standard attributes: `claude_code.session.count`, `claude_code.lines_of_code.count`, `claude_code.pull_request.count`, `claude_code.commit.count`, `claude_code.cost.usage` (USD), `claude_code.token.usage`, `claude_code.code_edit_tool.decision`, `claude_code.active_time.total`. The cost and token metrics break down by `model`, `query_source` (`main` / `subagent` / `auxiliary`), `effort`, `agent.name`, `skill.name`, `plugin.name`, `marketplace.name`, `mcp_server.name`, and `mcp_tool.name`, so you can attribute spend and activity right down to a single subagent, skill, plugin, or MCP tool. [^11]
 
@@ -197,7 +197,7 @@ Two events do the real work of making an audit trail. The first is `claude_code.
 
 Traces (beta) add a span tree per prompt: `claude_code.interaction` -> `claude_code.llm_request` / `claude_code.tool` (with `blocked_on_user` and `execution` children) / `claude_code.hook`. Enable with `CLAUDE_CODE_ENABLE_TELEMETRY=1` and `CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1` plus `OTEL_TRACES_EXPORTER`. Spans carry `model`, `agent_id`, and `parent_agent_id`, so a multi-agent run shows subagent spans nested under the parent's tool span and you can see who spawned whom. Bash and PowerShell subprocesses inherit `TRACEPARENT` for end-to-end tracing all the way through your scripts. [^11]
 
-### 15.6.2 The privacy/cardinality dial -- get this right before going to prod
+### 16.6.2 The privacy/cardinality dial -- get this right before going to prod
 
 Telemetry is off by default and content is redacted by default. You opt into detail one tier at a time, and every tier you climb is a privacy decision you are making on purpose: [^11]
 
@@ -211,7 +211,7 @@ Telemetry is off by default and content is redacted by default. You opt into det
 
 The docs are explicit that `OTEL_LOG_RAW_API_BODIES` "include[s] the entire conversation history" and that enabling it "implies consent to everything `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_TOOL_DETAILS`, and `OTEL_LOG_TOOL_CONTENT` would reveal." Cardinality and cost ride a separate dial, controlled by `OTEL_METRICS_INCLUDE_SESSION_ID`, `OTEL_METRICS_INCLUDE_ACCOUNT_UUID`, and the like. Note that `prompt.id` is deliberately kept off metrics, where it would explode into unbounded series, and reserved for event-level audit where it belongs. [^11]
 
-### 15.6.3 The collector as control point
+### 16.6.3 The collector as control point
 
 Route everything through an OpenTelemetry Collector instead of pointing clients straight at the backend. The collector becomes your one place to stand. It authenticates clients, redacts fields, attaches resource metadata (`OTEL_RESOURCE_ATTRIBUTES="department=eng,team.id=platform,cost_center=eng-123"`, no spaces allowed), routes metrics, logs, and traces along separate paths, and forwards to a SIEM plus your metrics and trace backends. One enforcement point for credentials, sampling, filtering, and schema, rather than N clients each making their own choices. For enterprise auth, `otelHeadersHelper` supplies dynamic and rotating headers (refreshing every 29 minutes by default, tunable with `CLAUDE_CODE_OTEL_HEADERS_HELPER_DEBOUNCE_MS`), and mTLS comes in through `CLAUDE_CODE_CLIENT_CERT` / `CLAUDE_CODE_CLIENT_KEY` (http) or `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` / `_CLIENT_KEY` (grpc). [^11]
 
@@ -219,7 +219,7 @@ Route everything through an OpenTelemetry Collector instead of pointing clients 
 
 ---
 
-## 15.7 Enterprise and managed controls
+## 16.7 Enterprise and managed controls
 
 Everything above only becomes enforceable because of one lever: the managed settings layer. It sits at the top of the precedence stack and nothing below it can override it, not CLI args, not local, project, or user settings (permission rules are the one exception, since they merge across scopes). This is where a policy stops being a suggestion. [^9]
 
@@ -231,18 +231,18 @@ Everything above only becomes enforceable because of one lever: the managed sett
 
 Drop-in files in `managed-settings.d/` merge alphabetically, so prefix them numerically (`10-telemetry.json`, `20-security.json`) to keep ordering deliberate; arrays are concatenated and de-duplicated, objects deep-merged. Tolerant parsing strips an invalid entry and warns rather than discarding the whole file, but it fails closed where it counts: an invalid `allowedMcpServers` collapses to an empty allowlist (no servers), an invalid `forceLoginOrgUUID` permits no org, and an invalid `enforceAvailableModels` or `allowManagedMcpServersOnly` is treated as `true`. Run `claude doctor` to validate before you push to the fleet. [^9]
 
-### 15.7.1 Identity, version, and the policy stack
+### 16.7.1 Identity, version, and the policy stack
 
 | Concern | Key(s) | Notes |
 |---------|--------|-------|
 | Pin to an org | `forceLoginOrgUUID` (str or array), `forceLoginMethod` (`claudeai` / `console`) | Stops shadow personal accounts |
-| Version floor / ceiling | `requiredMinimumVersion`, `requiredMaximumVersion` | Block known-vulnerable builds; pin a tested version (relevant given 15.3) |
+| Version floor / ceiling | `requiredMinimumVersion`, `requiredMaximumVersion` | Block known-vulnerable builds; pin a tested version (relevant given 16.3) |
 | Fresh policy on start | `forceRemoteSettingsRefresh: true` | Will not start until settings re-fetched |
 | Identity and provisioning | SSO, domain capture, role-based permissions | Claude for Enterprise adds "SSO, domain capture, role-based permissions, compliance API, and managed policy settings" [^12] |
 | Compliance data access | Compliance API | Real-time usage data for audit; Enterprise tier [^12] |
 | Dynamic policy | `policyHelper` (managed only, v2.1.136+) | Executable computes managed settings at startup; only honored from MDM or system `managed-settings.json` |
 
-### 15.7.2 Constraining models, tools, MCP, skills
+### 16.7.2 Constraining models, tools, MCP, skills
 
 | Concern | Key(s) | Scope |
 |---------|--------|-------|
@@ -268,7 +268,7 @@ Drop-in files in `managed-settings.d/` merge alphabetically, so prefix them nume
 
 ---
 
-## 15.8 Regulated-industry compliance and audit patterns
+## 16.8 Regulated-industry compliance and audit patterns
 
 If your cohort has healthcare and finance engineers, the CertifyOS-shaped problems, this is the section that earns its keep. Start with the load-bearing fact, because it is the one most teams get wrong: **Claude Code is not, today, an Eligible Service under Anthropic's BAA.** The Claude API (the Messages API, what Anthropic calls the 1P API) is an Eligible Service on a HIPAA-ready API organization; Claude Code is not. Anthropic states it directly: "Claude Code isn't an Eligible Service on a HIPAA-ready API organization." There is a narrow window where Claude Code is covered, and it is a trap to lean on: it is covered under the BAA only with zero data retention enabled, and ZDR blocks the Covered Models, so you cannot get BAA coverage and the frontier models at the same time. [^13]
 
@@ -284,7 +284,7 @@ The recipe for an in-house audit trail reads as one clean chain: managed setting
 | Tool details | Security audit | `OTEL_LOG_TOOL_DETAILS=1` + collector redaction |
 | Restricted traces | Incident / regulated audit | content only in approved, short-retention storage |
 
-The audit trail is built from a small set of blocks, all of them primary OTel signals from section 15.6. `tool_decision` tells you whether something was allowed and by what source (config, hook, or human). `tool_result` tells you what ran. `PostToolUse` hook completions tell you policy was enforced. All of it correlates through `prompt.id`, `session.id`, and `tool_use_id`. A `PostToolUse` compliance hook can normalize command, path, policy-rule, and reason into a structured event and ship it to the same backend; keep that hook's output small so it does not destabilize the pipeline carrying everything else.
+The audit trail is built from a small set of blocks, all of them primary OTel signals from section 16.6. `tool_decision` tells you whether something was allowed and by what source (config, hook, or human). `tool_result` tells you what ran. `PostToolUse` hook completions tell you policy was enforced. All of it correlates through `prompt.id`, `session.id`, and `tool_use_id`. A `PostToolUse` compliance hook can normalize command, path, policy-rule, and reason into a structured event and ship it to the same backend; keep that hook's output small so it does not destabilize the pipeline carrying everything else.
 
 The industry-specific monitoring patterns below are senior guidance, not Anthropic policy. Adapt them to your actual control framework rather than treating them as the framework:
 
@@ -316,11 +316,11 @@ Before you deploy this, verify each key name and the `network` sub-keys against 
 
 ---
 
-## 15.9 The 2026 frontier (treat each new autonomy primitive as new attack surface)
+## 16.9 The 2026 frontier (treat each new autonomy primitive as new attack surface)
 
 The features in this section all push in the same direction: more execution happening unattended, more memory carried across sessions. That is exactly the territory where security and observability stop being things you can defer. All of it is version-pinned, so re-verify before you teach any of it.
 
-### 15.9.1 Background sessions and Agent View
+### 16.9.1 Background sessions and Agent View
 
 `claude agents` opens Agent View (research preview, requires v2.1.139+), a single screen for dispatching and managing many background sessions. The work is hosted by a per-user supervisor process that lives independently of your terminal, which is the part that changes the security picture. Close Agent View, close your shell, start a fresh interactive session, and the dispatched work keeps running. Session state persists on disk under `~/.claude/jobs/` across auto-updates and supervisor restarts. [^16]
 
@@ -328,11 +328,11 @@ One operational detail worth correcting a common assumption: sleep does not stop
 
 For sustained unattended runs there are three primitives, and the difference between them is a security difference. `/loop` is session-scoped: it re-runs a prompt while the session stays open, stops when the terminal closes, and self-expires after seven days. Routines (the cloud option, reached via `/schedule` in the CLI) run on Anthropic-managed infrastructure on a cron schedule, survive your machine being off, and "run autonomously" with no permission prompts. `/goal` keeps a session working turn after turn until a completion condition is met rather than on an interval. The security implication writes itself: anything that runs unattended, and especially anything that runs autonomously with prompts disabled, has to be sandboxed and audited, because the prompts are no longer where your attention is, and it should never run on a host that holds prod credentials. [^17]
 
-### 15.9.2 Plugins and marketplaces
+### 16.9.2 Plugins and marketplaces
 
 Plugins bundle skills, agents, hooks, and MCP servers, which means a plugin can ship executable hooks and live MCP connections. Installing one is a trust decision wearing the clothes of a convenience. That is why the managed marketplace keys exist (`blockedMarketplaces`, `strictKnownMarketplaces`, `pluginTrustMessage`, `allowedChannelPlugins`). OTel attribution helps you watch this: it logs official-marketplace plugin names verbatim and collapses third-party ones to `"third-party"`, so an unsanctioned plugin shows up as a smudge in your telemetry rather than a name. Govern marketplaces the way you govern a package registry. [^9] [^11]
 
-### 15.9.3 Managed Agents and dreaming
+### 16.9.3 Managed Agents and dreaming
 
 Managed Agents is the Claude Platform's hosted agent runtime, reached through the API rather than the CLI, and every request requires the `managed-agents-2026-04-01` beta header. Dreaming (a research preview, additionally needing `dreaming-2026-04-21`) is its cross-session memory-consolidation feature. [^18]
 
@@ -344,7 +344,7 @@ Self-curating memory carries its own security and governance weight, and it is w
 
 ---
 
-## 15.10 Putting it together: a security posture decision table
+## 16.10 Putting it together: a security posture decision table
 
 | Scenario | Recommended posture |
 |----------|---------------------|

@@ -1,10 +1,10 @@
-# Chapter 17 -- Cost, Caching and Limits
+# Chapter 06 -- Cost, Caching and Limits
 
 **TL;DR.** Running Claude Code well at the senior level is mostly an economics problem wearing an engineering costume. There are two billing worlds: a flat subscription (Pro, Max) where you trade dollars for a rolling usage allowance, and metered API billing through the Console where you pay per token and your spend climbs with your ambition. The subscription world bites through two rate-limit windows, a five-hour rolling session and a seven-day week, and both reset on schedules you do not get to pick. The metered world bites through tier-gated spend caps and per-minute token limits. Prompt caching is the single largest lever you have over the metered bill: a cache read costs a tenth of a fresh input token, Claude Code turns it on for you, and the things that quietly break it are the things you do without thinking, like switching models mid-session or clearing context. The multipliers that actually move your spend are the 1M context window, effort and thinking, and the fan-out math of subagents and agent teams, which run roughly N times the tokens of a single session. You watch all of it through `/usage`, `/cost`, the status line, and the Console, and you cap it through workspace spend limits and `/usage-credits`. Dollar figures drift; this chapter teaches you the structure and points you at the live numbers.
 
 > **Reading note.** Exact dollar prices and rate-limit message counts change faster than a book can track, so they are described structurally and left to the live pages. Consult the [pricing page](https://platform.claude.com/docs/en/about-claude/pricing) for per-token rates and the [costs page](https://code.claude.com/docs/en/costs) for Claude Code spend guidance. Claude Code ships near-daily; version-pinned and tier-specific claims are accurate as of 2026-06-18, so re-verify them against the official docs before you script against them. Model routing and effort are the home of Chapter 05; context engineering is the home of Chapter 02; this chapter owns the money.
 
-## 17.1 Two billing worlds and when each makes sense
+## 6.1 Two billing worlds and when each makes sense
 
 Every Claude Code session bills against one of two meters, and which one you are on changes how you think about cost from the first keystroke.
 
@@ -27,7 +27,7 @@ The pragmatic read for a working senior is this. If your usage is steady and you
 
 A team that is rolling Claude Code out should not guess. Start a small pilot group, turn on the tracking tools, and establish a real baseline before a wider rollout. [^6]
 
-## 17.2 The rate-limit windows and when they bite
+## 6.2 The rate-limit windows and when they bite
 
 Subscription usage is governed by two rolling windows, and understanding their shape is the difference between a smooth week and a Thursday where the model goes dark in the middle of a refactor.
 
@@ -35,7 +35,7 @@ The first window is a five-hour rolling session. Your session-based usage limit 
 
 The tiers stack as multiples of Pro. Max 5x gives you five times the per-session usage of Pro; Max 20x gives you twenty times. [^12] How many messages that actually buys you is deliberately not a fixed number, because consumption depends on message length, file attachment size, conversation length, tool usage, model choice, effort level, and artifact creation. [^13]
 
-What matters for an engineer is the failure mode, more than the headline multiple. When a window empties you do not get a gentle warning, you get a wall: Claude Code shows a message like "You've hit your session limit - resets 3:45pm", "You've hit your weekly limit - resets Mon 12:00am", or "You've hit your Opus limit - resets 3:45pm", and blocks further requests until the reset time shown. [^14] The five-hour wall is annoying but self-healing; wait it out and you are back. The weekly wall is the one that ruins a sprint, because it can leave you locked out for days; the in-CLI escape is to buy usage credits with `/usage-credits` (Pro and Max), which is covered in 17.7. The two windows compose: a heavy five-hour burst can be fine, but four of them in a week can drain the weekly bucket while every individual session looked healthy.
+What matters for an engineer is the failure mode, more than the headline multiple. When a window empties you do not get a gentle warning, you get a wall: Claude Code shows a message like "You've hit your session limit - resets 3:45pm", "You've hit your weekly limit - resets Mon 12:00am", or "You've hit your Opus limit - resets 3:45pm", and blocks further requests until the reset time shown. [^14] The five-hour wall is annoying but self-healing; wait it out and you are back. The weekly wall is the one that ruins a sprint, because it can leave you locked out for days; the in-CLI escape is to buy usage credits with `/usage-credits` (Pro and Max), which is covered in 6.7. The two windows compose: a heavy five-hour burst can be fine, but four of them in a week can drain the weekly bucket while every individual session looked healthy.
 
 You do not have to fly blind into either wall. Claude Code exposes both windows to your status line. The `rate_limits` object carries `five_hour` and `seven_day`, each with a `used_percentage` from 0 to 100 and a `resets_at` in Unix epoch seconds. [^15] The object appears only for Claude.ai subscribers (Pro and Max) and only after the first API response of a session, and each window can be independently absent, so a robust status line handles the missing case. [^16]
 
@@ -73,7 +73,7 @@ API users on the Console live under a different limit regime entirely, and it is
 
 Exceed any per-minute limit and you get a 429 with a `retry-after` header telling you how long to wait; Claude Code's own retry logic handles transient 429s for you, but sustained ones mean you have outgrown your tier. [^22] The single most important fact buried in that page, and the bridge to the next section, is that for most current models only uncached input tokens count toward ITPM. Cache reads do not. [^23] That turns prompt caching from a cost optimization into a throughput multiplier: with an 80 percent cache hit rate against a 2,000,000 ITPM limit you can effectively push 10,000,000 total input tokens per minute, because the 8M cached tokens are free of the limit. [^24]
 
-## 17.3 Prompt caching: the largest lever you have
+## 6.3 Prompt caching: the largest lever you have
 
 A coding session is the most cache-friendly workload there is. The same system prompt, the same tool definitions, the same CLAUDE.md, the same files you read ten turns ago, all of it sits at the front of the context and almost never changes. Prompt caching lets the model resume from a prefix it has already processed instead of re-reading it, and on a long session that prefix is most of your input. [^25]
 
@@ -119,7 +119,7 @@ The model-switch line deserves emphasis because Claude Code warns you about it d
 
 The status line breaks current usage into its components, and the two that tell the caching story are `cache_creation_input_tokens` (what you wrote to cache this turn) and `cache_read_input_tokens` (what you reused). [^34] A healthy long session shows reads dwarfing fresh input; if you see large creation numbers turn after turn, something in your prefix is churning and you are paying the write premium repeatedly without ever cashing in the read discount. The same `usage` fields are reported by the API directly, so the same diagnosis works whether you are subscribed or metered. [^35]
 
-## 17.4 Context editing as a cost lever, and its cache tax
+## 6.4 Context editing as a cost lever, and its cache tax
 
 Caching rewards a long, stable prefix. Context editing does the opposite, it actively removes content from the conversation, and the tension between the two is the most subtle cost decision in this chapter. (The mechanics of context management and compaction are the home of Ch. 02; here we treat only the money.)
 
@@ -140,7 +140,7 @@ The fix is to clear in worthwhile chunks. The `clear_at_least` parameter sets a 
 
 In day-to-day Claude Code use the same tension shows up in plainer clothes. `/clear` between unrelated tasks starts a fresh session and stops you from dragging stale context, and its tokens, into every subsequent message. [^43] That is the cheap, blunt version of the same idea: a new task does not deserve the old task's prefix.
 
-## 17.5 The multipliers that actually move your spend
+## 6.5 The multipliers that actually move your spend
 
 A handful of choices dominate your token bill, and they compound. Knowing their rough magnitudes lets you reason about cost before you press enter instead of after you read the invoice.
 
@@ -156,7 +156,7 @@ Extended thinking is on by default because it sharply improves complex reasoning
 
 ### Subagents and agent teams: the Nx multiplier
 
-This is where bills get surprising, because the cost is not linear in your effort, it is linear in the number of agents you spawn. A subagent runs verbose work, test runs, log processing, doc fetching, in its own context so only a summary returns to your main conversation; that keeps your main context lean, but the subagent still spends real tokens on its own context. [^51] (Subagent mechanics, nesting, and config knobs are the home of Ch. 07; orchestration economics and the research-system figures are the home of Ch. 10.)
+This is where bills get surprising, because the cost is not linear in your effort, it is linear in the number of agents you spawn. A subagent runs verbose work, test runs, log processing, doc fetching, in its own context so only a summary returns to your main conversation; that keeps your main context lean, but the subagent still spends real tokens on its own context. [^51] (Subagent mechanics, nesting, and config knobs are the home of Ch. 08; orchestration economics and the research-system figures are the home of Ch. 11.)
 
 Agent teams take the multiplier further. They spawn multiple full Claude Code instances, each carrying its own context window, so token usage scales roughly with team size and how long each teammate runs. [^52] Anthropic puts a concrete number on it: agent teams use approximately 7x more tokens than a standard session when teammates run in plan mode, because each teammate is a separate instance with its own context. [^53] Agent teams are disabled by default and gated behind `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, which is the right posture for a feature with that cost profile. [^54]
 
@@ -174,7 +174,7 @@ There is a small floor under every session. Claude Code spends a trickle of toke
 | Agent team | ~7x a standard session in plan mode | Sonnet teammates, small teams, shut them down |
 | Background | Under ~$0.04 per session | Negligible; runs on Haiku |
 
-## 17.6 Reading where the tokens go: /usage, /cost, and the Console
+## 6.6 Reading where the tokens go: /usage, /cost, and the Console
 
 You cannot manage what you cannot see, and Claude Code gives you four lenses, each with a different fidelity and a different audience.
 
@@ -196,7 +196,7 @@ The Console is the lens of record. For authoritative billing, the Usage page in 
 
 One gap worth flagging for enterprise readers. On Bedrock, Vertex, and Foundry, Claude Code does not send cost metrics from your cloud, so several large enterprises route through LiteLLM, an open-source proxy that tracks spend by key, to recover visibility. [^65] That project is unaffiliated with Anthropic and unaudited, so treat it as a community workaround rather than a blessed path.
 
-## 17.7 Spend caps and managed cost controls
+## 6.7 Spend caps and managed cost controls
 
 Visibility is half the job; the other half is putting a hard ceiling under the spend so a runaway automation cannot bankrupt a budget overnight. The controls differ by billing world.
 
@@ -214,11 +214,11 @@ Enterprise admins also have a softer control worth knowing in a cost chapter: mo
 | `availableModels` allowlist | Either | Managed / policy settings |
 | Tier spend ceiling | Metered (API) | Console Limits, advances with credit purchases |
 
-## 17.8 The cost-versus-capability calculus
+## 6.8 The cost-versus-capability calculus
 
 Everything in this chapter resolves to a single recurring decision: how much capability does this particular task actually need, and what is the cheapest way to buy exactly that much. The mistake that costs seniors the most is reaching for the top of every dial by reflex, the biggest model, the highest effort, the largest window, a team of agents, when the task in front of them wanted a fraction of it.
 
-The routing logic lives in Ch. 05 and the context logic in Ch. 02, so here is only the money summary. Sonnet handles most coding work well and costs less than Opus; reserve Opus for complex architecture and multi-step reasoning, and switch with `/model` rather than running everything on the expensive tier out of habit. [^71] Specific prompts beat vague ones on cost as much as on quality, because "improve this codebase" triggers broad scanning while "add input validation to the login function in auth.ts" lets the model work with minimal file reads. [^72] Plan mode is a cost tool as much as a quality one: it surfaces a wrong direction before you have paid to execute it, and `/rewind` lets you abandon an expensive dead end without re-running the whole session. [^73] (Checkpoints and rewind are the home of Ch. 04; verification, which is itself a cost decision because catching a bad direction early is cheaper than fixing it late, is the home of Ch. 11.)
+The routing logic lives in Ch. 05 and the context logic in Ch. 02, so here is only the money summary. Sonnet handles most coding work well and costs less than Opus; reserve Opus for complex architecture and multi-step reasoning, and switch with `/model` rather than running everything on the expensive tier out of habit. [^71] Specific prompts beat vague ones on cost as much as on quality, because "improve this codebase" triggers broad scanning while "add input validation to the login function in auth.ts" lets the model work with minimal file reads. [^72] Plan mode is a cost tool as much as a quality one: it surfaces a wrong direction before you have paid to execute it, and `/rewind` lets you abandon an expensive dead end without re-running the whole session. [^73] (Checkpoints and rewind are the home of Ch. 04; verification, which is itself a cost decision because catching a bad direction early is cheaper than fixing it late, is the home of Ch. 12.)
 
 The deepest cost lever is the cheapest to pull and the easiest to forget: keep the context small. Token cost scales with context size, so every habit that keeps the window lean, clearing between tasks, deferring MCP tool definitions, preferring CLI tools over MCP servers, offloading log-grepping to hooks, moving rarely-used CLAUDE.md content into on-demand skills, pays out on every message for the rest of the session. [^74] Caching makes a stable prefix cheap; context discipline keeps the prefix small. Hold both at once and the bill mostly takes care of itself.
 

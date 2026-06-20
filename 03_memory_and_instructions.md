@@ -1,6 +1,6 @@
 # Memory and Instructions
 
-**TL;DR.** Every Claude Code session opens with a fresh context window that remembers nothing of yesterday. Two mechanisms carry knowledge across that gap. CLAUDE.md files hold the instructions you write; auto memory holds the notes Claude writes to itself. Both load at the start of every conversation, and both arrive as context, not enforced configuration. [^1] Claude reads them and tries to comply, and that trying is the whole of the guarantee. Memory is the most token-efficient lever you have and the easiest one to ruin, because you pay for it on every single session, which makes signal density the only thing that matters. This chapter walks the instruction hierarchy (managed, user, project, local), how files load and resolve, `@`-imports and their cost model, path-scoped rules in `.claude/rules/`, auto memory and `MEMORY.md`, subagent memory, `/init` and `/memory`, what survives `/compact`, and the quiet discipline of a short, load-bearing memory file. When a behavior has to hold no matter what Claude decides, the answer is a hook, not a memory file (see Ch. 09).
+**TL;DR.** Every Claude Code session opens with a fresh context window that remembers nothing of yesterday. Two mechanisms carry knowledge across that gap. CLAUDE.md files hold the instructions you write; auto memory holds the notes Claude writes to itself. Both load at the start of every conversation, and both arrive as context, not enforced configuration. [^1] Claude reads them and tries to comply, and that trying is the whole of the guarantee. Memory is the most token-efficient lever you have and the easiest one to ruin, because you pay for it on every single session, which makes signal density the only thing that matters. This chapter walks the instruction hierarchy (managed, user, project, local), how files load and resolve, `@`-imports and their cost model, path-scoped rules in `.claude/rules/`, auto memory and `MEMORY.md`, subagent memory, `/init` and `/memory`, what survives `/compact`, and the quiet discipline of a short, load-bearing memory file. When a behavior has to hold no matter what Claude decides, the answer is a hook, not a memory file (see Ch. 10).
 
 > **Version posture.** Claude Code ships near-daily. The line counts, byte thresholds, settings keys, and version floors below are accurate as of 2026-06-18 against the official docs. Verify version-pinned details against the live changelog (`https://code.claude.com/docs/en/changelog.md`) before relying on them in a live or teaching context.
 
@@ -139,7 +139,7 @@ The rules of the road, all from the same doc section: [^18]
 
 Relative and absolute paths both work, and relative paths "resolve relative to the file containing the import, not the working directory." Recursive imports are allowed, "with a maximum depth of four hops." To mention a path without importing it, wrap it in backticks: `` `@README` `` stays literal while `@README` outside backticks imports, and import parsing "skips Markdown code spans and fenced code blocks." The first time Claude encounters external imports it shows an approval dialog listing the files, and "if you decline, the imports stay disabled and the dialog does not appear again."
 
-The teaching point that matters most lives just under the syntax. The `@`-import helps you organize, splitting a long file into named pieces a human can navigate, and that is the entire benefit. It does nothing for context cost. "Splitting into `@path` imports helps organization but does not reduce context, since imported files load at launch." [^19] When you genuinely want to defer the token cost, the tools are path-scoped rules (next section) and skills (see Ch. 06). The import only rearranges the furniture; it never makes the room bigger.
+The teaching point that matters most lives just under the syntax. The `@`-import helps you organize, splitting a long file into named pieces a human can navigate, and that is the entire benefit. It does nothing for context cost. "Splitting into `@path` imports helps organization but does not reduce context, since imported files load at launch." [^19] When you genuinely want to defer the token cost, the tools are path-scoped rules (next section) and skills (see Ch. 07). The import only rearranges the furniture; it never makes the room bigger.
 
 ### Cross-worktree personal instructions
 
@@ -238,8 +238,8 @@ User-level rules live in `~/.claude/rules/` and apply to every project on your m
 |---|---|
 | Facts Claude should hold **every** session (build cmds, layout, "always X") | **CLAUDE.md** |
 | Conventions that only matter when touching **certain files** | **Path-scoped rule** in `.claude/rules/` |
-| A **multi-step procedure** or task-specific knowledge that need not be in context all the time | **Skill** (loads on invoke or when relevant -- see Ch. 06) |
-| A rule that **must always hold** regardless of Claude's judgment | **Hook** / `permissions.deny` (see Ch. 09) |
+| A **multi-step procedure** or task-specific knowledge that need not be in context all the time | **Skill** (loads on invoke or when relevant -- see Ch. 07) |
+| A rule that **must always hold** regardless of Claude's judgment | **Hook** / `permissions.deny` (see Ch. 10) |
 
 The doc puts it without hedging: "If an entry is a multi-step procedure or only matters for one part of the codebase, move it to a skill or a path-scoped rule instead." [^28]
 
@@ -323,7 +323,7 @@ When memory is enabled, three things happen: the subagent's system prompt gets r
 
 Two facts here are worth internalizing rather than just reading. The first is that a custom subagent's system prompt "replaces the default Claude Code system prompt entirely, the same way `--system-prompt` does," and yet "`CLAUDE.md` files and project memory still load through the normal message flow." So your project conventions reach the subagent even though its system prompt is bespoke. The built-in Explore and Plan agents are the exception: they "skip your CLAUDE.md files and the parent session's git status to keep research fast and inexpensive," and there is "no frontmatter field or per-agent setting to change which agents skip them." [^38]
 
-The second is the workflow the docs recommend, which closes the loop on memory being useful at all. Ask the subagent to consult its memory before ("check your memory for patterns you've seen before") and update it after ("save what you learned to your memory"). Bake those instructions into the subagent's markdown body and "it proactively maintains its own knowledge base," session after session, without you in the loop. [^39] For the full subagent mechanics (built-ins, tools, isolation, frontmatter roster), see Ch. 07.
+The second is the workflow the docs recommend, which closes the loop on memory being useful at all. Ask the subagent to consult its memory before ("check your memory for patterns you've seen before") and update it after ("save what you learned to your memory"). Bake those instructions into the subagent's markdown body and "it proactively maintains its own knowledge base," session after session, without you in the loop. [^39] For the full subagent mechanics (built-ins, tools, isolation, frontmatter roster), see Ch. 08.
 
 ---
 
@@ -458,8 +458,8 @@ One sentence holds the whole chapter, so keep it close. CLAUDE.md content "is de
 | Yours alone, this project, not committed | `./CLAUDE.local.md` (gitignored) |
 | Org-mandated, cannot be skipped | Managed policy CLAUDE.md / `claudeMd` settings key |
 | Only matters when touching certain files | `.claude/rules/<topic>.md` with `paths:` |
-| A multi-step procedure / loads on demand | A **skill** (Ch. 06) |
-| Must hold no matter what Claude decides | A **hook** / `permissions.deny` (Ch. 09) |
+| A multi-step procedure / loads on demand | A **skill** (Ch. 07) |
+| Must hold no matter what Claude decides | A **hook** / `permissions.deny` (Ch. 10) |
 | Something Claude figured out by working here | Let **auto memory** capture it, then audit |
 
 **What actually defers token cost?**
@@ -471,7 +471,7 @@ One sentence holds the whole chapter, so keep it close. CLAUDE.md content "is de
 | Subdirectory CLAUDE.md | **Yes** -- loads when Claude reads that dir | Monorepo pattern |
 | `.claude/rules/` **with** `paths:` | **Yes** -- loads on glob match | The lean-memory lever |
 | `.claude/rules/` **without** `paths:` | No -- launch, like `.claude/CLAUDE.md` | Unconditional rules |
-| Skill | **Yes** -- loads on invoke / when relevant | See Ch. 06 |
+| Skill | **Yes** -- loads on invoke / when relevant | See Ch. 07 |
 | `MEMORY.md` topic file | **Yes** -- read on demand | Index lives in `MEMORY.md` |
 
 ---

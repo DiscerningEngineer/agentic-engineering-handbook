@@ -28,28 +28,28 @@ About 120,000 words across 18 chapters, in seven parts.
 ### Part II -- Driving the Agent
 - [04 - Driving the Agent](04_driving_the_agent.md)
 - [05 - Models, Effort and Prompting](05_models_and_prompting.md)
-- [17 - Cost, Caching and Limits](17_cost_caching_and_limits.md)
+- [06 - Cost, Caching and Limits](06_cost_caching_and_limits.md)
 
 ### Part III -- Extending the Agent
-- [06 - Agent Skills](06_skills.md)
-- [07 - Subagents and Agent Types](07_subagents.md)
-- [08 - MCP (Model Context Protocol)](08_mcp.md)
-- [09 - Hooks](09_hooks.md)
+- [07 - Agent Skills](07_skills.md)
+- [08 - Subagents and Agent Types](08_subagents.md)
+- [09 - MCP (Model Context Protocol)](09_mcp.md)
+- [10 - Hooks](10_hooks.md)
 
 ### Part IV -- Scale
-- [10 - Multi-Agent Orchestration and Scale](10_orchestration_and_scale.md)
+- [11 - Multi-Agent Orchestration and Scale](11_orchestration_and_scale.md)
 
 ### Part V -- Trust (the spine)
-- [11 - Verification and Review](11_verification_and_review.md)
-- [12 - Evals for Coding Agents](12_evals.md)
+- [12 - Verification and Review](12_verification_and_review.md)
+- [13 - Evals for Coding Agents](13_evals.md)
 
 ### Part VI -- The Practice
-- [13 - How Real Engineers Actually Work](13_real_world_workflows.md)
-- [14 - Leading Team Adoption](14_team_adoption.md)
+- [14 - How Real Engineers Actually Work](14_real_world_workflows.md)
+- [15 - Leading Team Adoption](15_team_adoption.md)
 
 ### Part VII -- Frontier and Reference
-- [15 - Security, Sandboxing and the Frontier](15_security_and_frontier.md)
-- [16 - Reference: Decision Tables, Commands and Glossary](16_reference.md)
+- [16 - Security, Sandboxing and the Frontier](16_security_and_frontier.md)
+- [17 - Reference: Decision Tables, Commands and Glossary](17_reference.md)
 
 ## How it stays current
 

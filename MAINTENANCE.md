@@ -11,6 +11,7 @@ A Claude Code skill ([maintenance/SKILL.md](maintenance/SKILL.md)) does the work
 3. Finds which chapters reference the changed features.
 4. Re-verifies and surgically updates only those chapters against primary docs, holding the book's standard (primary-sourced, in-voice, ASCII).
 5. Bumps the verification date and logs the run.
+6. Runs a structural-consistency audit every pass (section numbering, chapter-header format, cross-reference resolution, ASCII), independent of the changelog. A claim-level check does not catch structural drift -- a chapter renumber that leaves stale in-body section numbers passes every fact check and still ships broken.
 
 It is surgical by design -- most runs touch a handful of chapters. It never lowers the standard to fill a gap: if primary docs do not yet cover a new feature, it flags it instead of reaching for a blog. Chart or image-locked figures (benchmark scores, pricing graphics) get a browser-and-vision check, because a text-only diff cannot see them.
 

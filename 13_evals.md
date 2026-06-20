@@ -1,4 +1,4 @@
-# Chapter 12 -- Evals for Coding Agents
+# Chapter 13 -- Evals for Coding Agents
 
 **TL;DR.** A leaderboard number tells you which model is roughly more capable at GitHub-issue-shaped work, measured noisily, and almost nothing about whether your agent on your codebase got better when you changed something. SWE-bench Verified climbed from 49% to the low 80s in about a year and is now saturated near the top, where infrastructure config alone can swing a score by six points. The skill that compounds is building your own eval: twenty to fifty tasks drawn from your real failures, run in isolated environments, graded by code where the answer is verifiable, by a second model where quality is subjective, and by you where it counts. Learn the difference between pass@k (can it ever do this?) and pass^k (can it do this every time?), because they answer opposite questions and diverge fast. Write the eval before the capability exists, then tune the agent until it is green. And read the transcripts, because a green number is a claim, not a fact, until you have watched the runs that produced it. Underneath all of it sits one lesson from the hardest agentic coding project Anthropic has published: the verifier must be near-flawless, or the agent will cheerfully solve the wrong problem.
 
@@ -6,19 +6,19 @@
 
 ---
 
-## 12.1 Why a senior engineer evals at all
+## 13.1 Why a senior engineer evals at all
 
 The instinct of an experienced engineer is to trust their own judgment. Run the agent on a few real tasks, eyeball the diffs, ship it. That works right up until the day it quietly stops working, and three forces in the agentic era make that day arrive sooner than you would expect.
 
 The first is non-determinism. The same prompt against the same model walks a different path every time. A change that looks like an improvement in one run may have been luck wearing the costume of a fix, and with a single sample you have no way to separate the signal from the noise. The second is the sheer number of things you are now tuning. You are not just picking a model. You are shaping CLAUDE.md, skills, hooks, subagent routing, effort levels, tool surfaces, and permission modes, and each of those interacts with the others. Every one is a hypothesis, and without a measurement harness you are optimizing blind and calling it intuition. The third is the quiet one, regression. Tightening a rule to fix one behavior silently breaks another, and you find out three sessions later when something that used to work doesn't. Anthropic's guidance is direct about the fix: test both the cases where a behavior should occur and the cases where it shouldn't, or you will lopsidedly optimize one at the expense of the other. [^1]
 
-The thesis is that as agents write more of the code, the human's center of gravity shifts toward reviewer and verifier, and verification becomes the load-bearing skill (see Ch. 11). Evals are verification industrialized. Instead of checking one output by hand, you check a distribution of outputs against a known-good standard, repeatably, every time you touch the system.
+The thesis is that as agents write more of the code, the human's center of gravity shifts toward reviewer and verifier, and verification becomes the load-bearing skill (see Ch. 12). Evals are verification industrialized. Instead of checking one output by hand, you check a distribution of outputs against a known-good standard, repeatably, every time you touch the system.
 
-This is not academia. The most ambitious internal coding experiment Anthropic has written up is a C compiler built almost entirely by agents, and its whole story belongs to Ch. 11. The part that belongs here is the eval lesson, which the author distilled to one operational line: "it's important that the task verifier is nearly perfect, otherwise Claude will solve the wrong problem." [^2] And most of the human's effort went somewhere telling: "Most of my effort went into designing the environment around Claude -- the tests, the environment, the feedback -- so that it could orient itself without me," which in practice meant finding high-quality compiler test suites, writing verifiers and build scripts, watching for the mistakes Claude was making, and designing new tests as each failure surfaced. [^3] The agents wrote the compiler. The human wrote, and obsessively maintained, the evals. That ratio is the lesson.
+This is not academia. The most ambitious internal coding experiment Anthropic has written up is a C compiler built almost entirely by agents, and its whole story belongs to Ch. 12. The part that belongs here is the eval lesson, which the author distilled to one operational line: "it's important that the task verifier is nearly perfect, otherwise Claude will solve the wrong problem." [^2] And most of the human's effort went somewhere telling: "Most of my effort went into designing the environment around Claude -- the tests, the environment, the feedback -- so that it could orient itself without me," which in practice meant finding high-quality compiler test suites, writing verifiers and build scripts, watching for the mistakes Claude was making, and designing new tests as each failure surfaced. [^3] The agents wrote the compiler. The human wrote, and obsessively maintained, the evals. That ratio is the lesson.
 
 ---
 
-## 12.2 SWE-bench Verified: read the trend, not the number
+## 13.2 SWE-bench Verified: read the trend, not the number
 
 SWE-bench Verified is the benchmark you will see quoted in every coding-model launch. Knowing what it is, and what it stopped being, is table stakes.
 
@@ -50,7 +50,7 @@ Public benchmarks answer one question, which model is roughly more capable at ge
 
 ---
 
-## 12.3 The infrastructure-noise caveat
+## 13.3 The infrastructure-noise caveat
 
 Before you trust any agentic-coding leaderboard, sit with one fact: the harness the eval ran on can move the score more than the model did.
 
@@ -69,7 +69,7 @@ This caveat is why the rest of the chapter exists. If a six-point swing can come
 
 ---
 
-## 12.4 Build your own: a 20-50 task eval
+## 13.4 Build your own: a 20-50 task eval
 
 Anthropic's guidance is refreshingly concrete: "20-50 simple tasks drawn from real failures is a great start." [^16] Early-stage agents show clear performance changes at small sample sizes, so you do not need a thousand-task dataset to catch a real regression. Start small, start real, grow the suite as new failure modes surface.
 
@@ -126,7 +126,7 @@ You do not need a vendor framework to start. A bash or python loop over a `tasks
 
 ---
 
-## 12.5 Grader types: code, model, human
+## 13.5 Grader types: code, model, human
 
 Every eval comes down to a grader, a function that maps an agent's output to pass/fail or a score. There are three families, and mature suites compose all three. [^16]
 
@@ -167,7 +167,7 @@ Human grading is the gold standard you can't afford at scale, so spend it where 
 
 ---
 
-## 12.6 pass@k vs pass^k: capability vs consistency
+## 13.6 pass@k vs pass^k: capability vs consistency
 
 A single run tells you almost nothing about a non-deterministic agent. You run each task k times, and how you aggregate those runs determines which question you are answering. The two standard aggregations mean opposite things and diverge fast.
 
@@ -201,15 +201,15 @@ For production agents, consistency rather than best-case capability is the optim
 
 ### A practical note on k
 
-You cannot measure pass^k honestly from one sample per task. Take enough samples to estimate the per-trial rate, then compute both metrics from it. Five to ten samples per task is a reasonable start for a 20-50 task suite; more tightens the estimate at the cost of API spend and wall-clock. And recall section 12.3: run those samples under matched conditions, same time window, same concurrency, same resource config, or infrastructure noise will masquerade as inconsistency and send you chasing a flaky agent that was never flaky.
+You cannot measure pass^k honestly from one sample per task. Take enough samples to estimate the per-trial rate, then compute both metrics from it. Five to ten samples per task is a reasonable start for a 20-50 task suite; more tightens the estimate at the cost of API spend and wall-clock. And recall section 13.3: run those samples under matched conditions, same time window, same concurrency, same resource config, or infrastructure noise will masquerade as inconsistency and send you chasing a flaky agent that was never flaky.
 
 ---
 
-## 12.7 Eval-driven development for agent workflows
+## 13.7 Eval-driven development for agent workflows
 
 The highest-leverage practice in this chapter is also the most counterintuitive: write the eval before the capability exists. Anthropic's framing is direct: "Build evals to define planned capabilities before agents can fulfill them, then iterate until the agent performs well." [^16]
 
-This is TDD's discipline (Ch. 11) lifted from the level of the code to the level of the agent system. Instead of "write a failing test, make it pass," it is "write a failing eval, then tune the agent, CLAUDE.md, skills, hooks, model, effort, subagent routing, until the eval is green." The eval is the executable specification of what you want your agent to be able to do.
+This is TDD's discipline (Ch. 12) lifted from the level of the code to the level of the agent system. Instead of "write a failing test, make it pass," it is "write a failing eval, then tune the agent, CLAUDE.md, skills, hooks, model, effort, subagent routing, until the eval is green." The eval is the executable specification of what you want your agent to be able to do.
 
 ### The EDD loop for an agentic setup
 
@@ -234,7 +234,7 @@ Headless JSON or stream-json output is what makes this scalable. Every run produ
 
 ---
 
-## 12.8 A senior's eval checklist
+## 13.8 A senior's eval checklist
 
 | Decision | Guidance |
 |----------|----------|

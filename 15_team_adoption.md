@@ -1,4 +1,4 @@
-# Chapter 14: Leading Team Adoption
+# Chapter 15 -- Leading Team Adoption
 
 **TL;DR.** Agentic engineering does not arrive by decree. It spreads the way every real practice spreads, hand to hand, through someone who uses it well in plain sight. This chapter is the individual-contributor change-agent playbook. You become the visible champion who shares techniques where the team already reads. You codify the team's shared judgment in a checked-in `CLAUDE.md`, path-scoped rules, and skills. You install review gates and deterministic hooks so quality and safety ride on the system instead of on anyone's memory. You win over skeptics one successful task at a time. And you measure adoption by signal that means something, which is artifacts accumulating and delivery moving, the count of seats provisioned being the least of it. Anthropic ships an official Champion kit doc and a `/team-onboarding` command that automate large parts of this. The framework travels across companies. Claude Code ships near-daily, though, so verify every version-pinned detail against the [changelog](https://code.claude.com/docs/en/changelog) and [docs home](https://code.claude.com/docs/en/overview) before you teach it. [^1]
 
@@ -6,7 +6,7 @@
 
 ---
 
-## 14.1 The adoption thesis: practice spreads, mandates stall
+## 15.1 The adoption thesis: practice spreads, mandates stall
 
 The way this falls apart is almost never technical. The failure has a shape, and the shape is a quiet one. Leadership buys seats. A handful of engineers find the tool genuinely useful. The dashboard glows green because everyone is licensed. And the artifacts that would tell you the team actually adopted anything, a shared `CLAUDE.md`, checked-in skills, committed permission allowlists, hooks, simply never show up. Anthropic names the underlying brittleness directly: *"Adoption that depends on a single person is fragile. Adoption that is carried by shared habits continues to compound on its own."* [^1] A practice that lives in one enthusiast is a candle in the wind. A practice that lives in shared habits and shared files keeps burning after that person logs off, and it compounds while they sleep.
 
@@ -32,7 +32,7 @@ The enterprise-scale variant adds **gate criteria between phases**: hold the pil
 
 ---
 
-## 14.2 The champion role (Anthropic's official kit)
+## 15.2 The champion role (Anthropic's official kit)
 
 Anthropic publishes a doc titled, plainly, **Champion kit**, with the subtitle "A playbook for engineers advocating Claude Code internally." It is the best-sourced artifact for this chapter, and worth reading start to finish with your team. [^1] Its core framing names you a multiplier: *"You are acting as a multiplier for your team, not a help desk."* [^1] Three reinforcing behaviors carry the role.
 
@@ -73,9 +73,9 @@ That last signal is the one that counts. When the channel starts answering itsel
 
 ---
 
-## 14.3 Shared standards: the team `CLAUDE.md` and the rules layer
+## 15.3 Shared standards: the team `CLAUDE.md` and the rules layer
 
-The team's accumulated judgment has to live somewhere version-controlled, or it lives only in the heads of whoever happened to learn it. This is the layer where agentic engineering stops being a collection of personal habits and becomes a team capability. The full memory hierarchy lives in Chapter 3; here the point narrows to making the shared layer carry the team.
+The team's accumulated judgment has to live somewhere version-controlled, or it lives only in the heads of whoever happened to learn it. This is the layer where agentic engineering stops being a collection of personal habits and becomes a team capability. The full memory hierarchy lives in Chapter 03; here the point narrows to making the shared layer carry the team.
 
 ### Check it into git -- that's the whole point
 
@@ -86,7 +86,7 @@ The official guidance leaves no room: *"Check CLAUDE.md into git so your team ca
 - `~/.claude/CLAUDE.md` -- applies to all your sessions; personal, not team.
 - Parent/child directory `CLAUDE.md` files -- monorepo-friendly; child files load on demand when Claude reads files in those directories. [^2]
 
-For team adoption the rule is one sentence: **the project root file is your shared substrate; everything else is personal or governance.** Precedence runs Managed policy > User > Project > Local, all layers concatenate, and the more-specific layer is read last (see Ch. 3). [^3]
+For team adoption the rule is one sentence: **the project root file is your shared substrate; everything else is personal or governance.** Precedence runs Managed policy > User > Project > Local, all layers concatenate, and the more-specific layer is read last (see Ch. 03). [^3]
 
 ### What a team `CLAUDE.md` should contain
 
@@ -114,7 +114,7 @@ Here is the habit that defines a team, and the official guidance states it plain
 That distinction carries the whole weight for a team. **A conversational correction is a patch that helps you once; a written rule prevents the error in every future session, for everyone who clones the repo.** This is the machine that takes one engineer's hard-won lesson and turns it into something the whole team knows without ever having learned it the hard way. To operationalize it:
 
 - Make updating the file a **deliberate habit**, not an afterthought. The memory doc frames `CLAUDE.md` as *"the place you write down what you'd otherwise re-explain,"* which is a thing you do continually as the team works, not once at setup. [^3]
-- **Let the code-review flow surface gaps.** When the managed PR review (section 14.5) reads your `CLAUDE.md`, a newly introduced violation shows up as a nit, and if a change makes a `CLAUDE.md` statement outdated, the reviewer flags that the docs need updating too. [^4]
+- **Let the code-review flow surface gaps.** When the managed PR review (section 15.5) reads your `CLAUDE.md`, a newly introduced violation shows up as a nit, and if a change makes a `CLAUDE.md` statement outdated, the reviewer flags that the docs need updating too. [^4]
 
 There is also **auto memory**, a second, Claude-written layer: notes Claude saves itself based on your corrections and preferences, stored per repository. It is machine-local and *not* shared across teammates, so it complements the committed `CLAUDE.md` rather than replacing it. For anything the team must share, write it into `CLAUDE.md`. [^3]
 
@@ -145,7 +145,7 @@ A team `CLAUDE.md` is onboarding documentation that happens to also get machine-
 
 ---
 
-## 14.4 Shared configuration: settings, permissions, skills, agents
+## 15.4 Shared configuration: settings, permissions, skills, agents
 
 Standards prose is one half of what travels. The other half is the *setup* itself, and four kinds of committed artifacts make it portable.
 
@@ -176,7 +176,7 @@ Skills are plain Markdown, which means a teammate adopts one by copying a file: 
 
 ### Shared subagents -- especially for review
 
-Define role-specialized assistants in `.claude/agents/` and commit them, so the whole team draws the same reviewer, the same read-only explorer, and so on. The official security-reviewer template is the archetype: a subagent with scoped tools (`Read, Grep, Glob, Bash`), a pinned model, and a focused system prompt that enumerates exactly what to hunt for, *"Injection vulnerabilities (SQL, XSS, command injection), Authentication and authorization flaws, Secrets or credentials in code, Insecure data handling,"* and ends with *"Provide specific line references and suggested fixes."* [^2] (See section 14.5 for how these wire into review gates, and Ch. 7 for subagent mechanics.)
+Define role-specialized assistants in `.claude/agents/` and commit them, so the whole team draws the same reviewer, the same read-only explorer, and so on. The official security-reviewer template is the archetype: a subagent with scoped tools (`Read, Grep, Glob, Bash`), a pinned model, and a focused system prompt that enumerates exactly what to hunt for, *"Injection vulnerabilities (SQL, XSS, command injection), Authentication and authorization flaws, Secrets or credentials in code, Insecure data handling,"* and ends with *"Provide specific line references and suggested fixes."* [^2] (See section 15.5 for how these wire into review gates, and Ch. 08 for subagent mechanics.)
 
 ### Org-level / managed settings (when you go enterprise)
 
@@ -186,9 +186,9 @@ This is where org-wide defaults and hard floors live: model defaults (`model`, `
 
 ---
 
-## 14.5 Review gates: where verification becomes a team norm
+## 15.5 Review gates: where verification becomes a team norm
 
-As the agents write more of the code, the bottleneck slides. It used to sit at *writing*. Now it sits at *reviewing*, and a team feels that shift in its bones before it can name it. Anthropic ships managed Code Review precisely to answer it, dispatching *"a fleet of specialized agents"* that *"examine the code changes in the context of your full codebase, looking for logic errors, security vulnerabilities, broken edge cases, and subtle regressions."* [^4] The team-adoption answer is to make verification the default state of the world rather than a thing people remember to do. Deep verification mechanics (TDD with agents, the C-compiler case study, adversarial review) live in Ch. 11; this section is about wiring them into a *team's* defaults.
+As the agents write more of the code, the bottleneck slides. It used to sit at *writing*. Now it sits at *reviewing*, and a team feels that shift in its bones before it can name it. Anthropic ships managed Code Review precisely to answer it, dispatching *"a fleet of specialized agents"* that *"examine the code changes in the context of your full codebase, looking for logic errors, security vulnerabilities, broken edge cases, and subtle regressions."* [^4] The team-adoption answer is to make verification the default state of the world rather than a thing people remember to do. Deep verification mechanics (TDD with agents, the C-compiler case study, adversarial review) live in Ch. 12; this section is about wiring them into a *team's* defaults.
 
 ### The principle: give every change a check it can run
 
@@ -225,7 +225,7 @@ This is the cleanest way to make the team's standards enforce themselves on ever
 
 ---
 
-## 14.6 Guardrails via hooks: deterministic team policy
+## 15.6 Guardrails via hooks: deterministic team policy
 
 `CLAUDE.md` rules are *advisory*. The model usually follows them, and "usually" is exactly the word that should make you nervous about anything safety-critical. The official line draws it cleanly: *"Unlike CLAUDE.md instructions which are advisory, hooks are deterministic and guarantee the action happens."* [^2] The heuristic is one sentence: *"Use hooks for actions that must happen every time with zero exceptions."* [^2] For a team, hooks are how you encode the non-negotiable policy that can no longer depend on every engineer, or every agent, remembering. Commit them in `.claude/settings.json`.
 
@@ -249,7 +249,7 @@ The audit/policy pattern is the spine of enterprise governance, and it is a firs
 
 ---
 
-## 14.7 Onboarding skeptics (and new hires)
+## 15.7 Onboarding skeptics (and new hires)
 
 A senior engineer who eyes this tool with suspicion is behaving correctly. The kit agrees: *"Healthy skepticism is expected; engineers should be cautious about tools that touch their code."* [^1] The official move is to leave the general argument alone and instead *"acknowledge the concern, offer a brief reframe, and propose one concrete demonstration on the person's own code. Most concerns are resolved by a single successful experience."* [^1]
 
@@ -283,7 +283,7 @@ There's a second, deeper onboarding pattern hiding in plain sight: hand the code
 
 ---
 
-## 14.8 Measuring adoption: signal over vanity
+## 15.8 Measuring adoption: signal over vanity
 
 The measurement trap is sitting right there, and it is comfortable. Count **seats provisioned** or **lines accepted**, watch the number climb, declare victory, move on. The thing those vanity metrics paper over is whether the practice is actually compounding. Anthropic's own analytics doc says the quiet part: even its contribution metrics are *"deliberately conservative and represent an underestimate of Claude Code's actual impact."* [^9] So read the dashboard for direction and trend, not as a scoreboard.
 
@@ -324,7 +324,7 @@ Anthropic's own guidance for the leaderboard is to recruit, not rank: use it to 
 
 ---
 
-## 14.9 Common failure modes (and the fix)
+## 15.9 Common failure modes (and the fix)
 
 Synthesized from the official failure-pattern list and the configuration docs.
 
@@ -342,7 +342,7 @@ The general-purpose anti-patterns from the official guide deserve a spot on a sh
 
 ---
 
-## 14.10 A portable rollout checklist
+## 15.10 A portable rollout checklist
 
 A condensed, company-agnostic sequence you can hand to any team lead.
 

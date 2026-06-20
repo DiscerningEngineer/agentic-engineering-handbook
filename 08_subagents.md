@@ -1,10 +1,10 @@
-# Chapter 07 -- Subagents and Agent Types
+# Chapter 08 -- Subagents and Agent Types
 
 **TL;DR.** A subagent is a worker that runs in its own context window with its own system prompt, tool set, model, and permissions, and hands back only a summary. The whole game is context isolation. You keep the verbose middle of a task out of your main conversation, the log scans and test runs and file dumps and parallel research, so only the conclusion ever lands in front of you. Claude Code ships three you will reach for constantly: Explore (Haiku, read-only, fast search), Plan (read-only research during plan mode), and general-purpose (all tools). On top of those you write your own as Markdown files in `.claude/agents/`. The moves that separate someone who delegates from someone who orchestrates are these: send cheap, bounded work to small models and keep your strongest model at the helm; fan out work that is genuinely independent and synthesize what comes back; understand the five-level nesting cap and what a level-five worker gives up; reach for forks when a worker needs the whole conversation and you want cheaper prompt-cache reuse; and know the handful of tools a subagent never gets, which turns out to be the real reason an agent cannot ask the user. Everything pinned to a version here came from a product that ships almost every day, so check the changelog before you teach it. [^1]
 
 ---
 
-## 7.1 What a subagent actually is
+## 8.1 What a subagent actually is
 
 A subagent runs "in its own context window with a custom system prompt, specific tool access, and independent permissions. When Claude encounters a task that matches a subagent's description, it delegates to that subagent, which works independently and returns results." [^2]
 
@@ -30,11 +30,11 @@ This cuts both ways, and it is the single most common source of "why did my suba
 
 What this means for teaching: if a rule has to reach an Explore or Plan subagent, something like "ignore the `vendor/` directory," you have to restate it in the prompt you hand Claude at the moment you delegate. It will not arrive through CLAUDE.md. The main conversation does read Explore and Plan results back with full CLAUDE.md context, so most of your rules never need to travel into the subagent at all. [^4]
 
-> **Distinguish three nearby things.** Subagents live *within a single session*. Running many *independent sessions* in parallel and watching them from one place is **background agents** (see `/en/agent-view`). Sessions that *talk to each other as peers* are **agent teams** (the canonical home is Ch. 10, Orchestration). Keep them apart in your head. [^5]
+> **Distinguish three nearby things.** Subagents live *within a single session*. Running many *independent sessions* in parallel and watching them from one place is **background agents** (see `/en/agent-view`). Sessions that *talk to each other as peers* are **agent teams** (the canonical home is Ch. 11, Orchestration). Keep them apart in your head. [^5]
 
 ---
 
-## 7.2 The built-in subagents
+## 8.2 The built-in subagents
 
 Claude Code "includes built-in subagents that Claude automatically uses when appropriate. Each inherits the parent conversation's permissions with additional tool restrictions." [^6]
 
@@ -68,7 +68,7 @@ To stop *all* delegation, deny the `Agent` tool itself. In non-interactive mode 
 
 ---
 
-## 7.3 Defining your own subagent
+## 8.3 Defining your own subagent
 
 A subagent is a Markdown file with YAML frontmatter, and the body is the system prompt. Here is the minimal version. [^13]
 
@@ -116,7 +116,7 @@ CLI-defined subagents passed through `--agents '{...}'` exist only for that sess
 
 ---
 
-## 7.4 Full frontmatter reference (the config knobs)
+## 8.4 Full frontmatter reference (the config knobs)
 
 Every field below can also be passed via `--agents` JSON. Only `name` and `description` are required. [^21]
 
@@ -237,7 +237,7 @@ In subagent frontmatter, a `Stop` hook is automatically converted to a `Subagent
 
 ---
 
-## 7.5 Delegation: how Claude decides, and how you force its hand
+## 8.5 Delegation: how Claude decides, and how you force its hand
 
 Claude delegates "based on the task description in your request, the `description` field in subagent configurations, and current context." You have two levers. [^36]
 
@@ -261,9 +261,9 @@ For a quick question about something already sitting in your conversation, reach
 
 ---
 
-## 7.6 Cost control via model routing
+## 8.6 Cost control via model routing
 
-This is where senior judgment shows up most plainly. Every subagent opens its own window, so tokens multiply fast. Anthropic's own multi-agent research reports that "agents typically use about 4x more tokens than chat interactions, and multi-agent systems use about 15x more tokens than chats." The full set of orchestration figures is Ch. 10's territory; what you carry into a subagent design session is the order of magnitude: a swarm is not a rounding error on your bill. [^40]
+This is where senior judgment shows up most plainly. Every subagent opens its own window, so tokens multiply fast. Anthropic's own multi-agent research reports that "agents typically use about 4x more tokens than chat interactions, and multi-agent systems use about 15x more tokens than chats." The full set of orchestration figures is Ch. 11's territory; what you carry into a subagent design session is the order of magnitude: a swarm is not a rounding error on your bill. [^40]
 
 The discipline is straightforward to state and harder to hold. Route cheap, bounded, parallelizable work to small models, and keep the expensive model for the orchestrator and the genuinely hard reasoning. Search, format and lint checks, log triage, first-pass review, and doc fetches all go to Haiku. Synthesis, architecture, and the actual fix stay with your strongest model at the helm. This is exactly the "control costs by routing tasks to faster, cheaper models like Haiku" framing the docs lead with, applied with the discernment to know which work is which. [^3]
 
@@ -296,7 +296,7 @@ For the regulated cohorts, one enterprise note. `availableModels` (managed/polic
 
 ---
 
-## 7.7 Fan-out, nesting, and forks
+## 8.7 Fan-out, nesting, and forks
 
 These are the three structural patterns. Learn when each one applies and the rest follows.
 
@@ -308,7 +308,7 @@ For investigations that do not depend on each other, spawn several subagents at 
 Research the authentication, database, and API modules in parallel using separate subagents
 ```
 
-Anthropic's multi-agent research system, an Opus lead coordinating parallel Sonnet subagents, posted a large uplift over single-agent Opus on their internal research eval, and most of the variance traced to token usage rather than model choice (the figures and their interpretation are Ch. 10). The practical reading you bring to fan-out is the part that holds across domains: multi-agent systems excel at "valuable tasks that involve heavy parallelization, information that exceeds single context windows, and interfacing with numerous complex tools," and they struggle in domains "that require all agents to share the same context or involve many dependencies between agents," with coding named as the example. Most coding tasks are the second kind, so reach for fan-out at the research-and-exploration edges, not the tightly-coupled middle. [^40]
+Anthropic's multi-agent research system, an Opus lead coordinating parallel Sonnet subagents, posted a large uplift over single-agent Opus on their internal research eval, and most of the variance traced to token usage rather than model choice (the figures and their interpretation are Ch. 11). The practical reading you bring to fan-out is the part that holds across domains: multi-agent systems excel at "valuable tasks that involve heavy parallelization, information that exceeds single context windows, and interfacing with numerous complex tools," and they struggle in domains "that require all agents to share the same context or involve many dependencies between agents," with coding named as the example. Most coding tasks are the second kind, so reach for fan-out at the research-and-exploration edges, not the tightly-coupled middle. [^40]
 
 Their decomposition rule of thumb is to give each subagent "an objective, an output format, guidance on the tools and sources to use, and clear task boundaries." Skip that and the agents "duplicate work, leave gaps, or fail to find necessary information." Their scaling heuristic: "simple fact-finding requires just 1 agent with 3-10 tool calls," while "complex research might use more than 10 subagents with clearly divided responsibilities." Embed those rules right in the orchestrator prompt. [^40]
 
@@ -362,7 +362,7 @@ The key behaviors and version gating: [^51]
 
 ---
 
-## 7.8 Foreground vs background, and worktree isolation
+## 8.8 Foreground vs background, and worktree isolation
 
 Foreground subagents block the main conversation until they finish, and permission prompts pass straight through to you live. [^53]
 
@@ -372,7 +372,7 @@ Background subagents run concurrently while you keep working. They operate on pe
 
 ---
 
-## 7.9 Tools subagents never get (why an agent "can't ask the user")
+## 8.9 Tools subagents never get (why an agent "can't ask the user")
 
 A subagent inherits internal and MCP tools by default, but a handful of tools "depend on the main conversation's UI or session state and are not available to subagents, even when listed in the `tools` field": [^23]
 
@@ -386,7 +386,7 @@ This trips people up often enough that it is worth saying plainly to a cohort. D
 
 ---
 
-## 7.10 Subagent vs the alternatives -- when to reach for what
+## 8.10 Subagent vs the alternatives -- when to reach for what
 
 Use the main conversation when the task needs frequent back-and-forth, when several phases share significant context (plan, then implement, then test), when you are making a quick targeted change, or when latency matters, since subagents start fresh and need time to gather their bearings. Use a subagent when the task produces verbose output you do not need, when you want to enforce tool restrictions, or when the work is self-contained and can come back as a summary. Consider a Skill instead when you want reusable prompts or workflows that run in the main context rather than in isolation. Use `/btw` for a throwaway question about existing context. [^55]
 
@@ -396,7 +396,7 @@ Use the main conversation when the task needs frequent back-and-forth, when seve
 | Same isolation but the worker needs full conversation context (cheaper via prompt cache) | **Fork** |
 | Reusable knowledge/procedure run in the main context | **Skill** |
 | A throwaway question about what's already in context | **`/btw`** |
-| Sustained parallelism, each worker its own independent window, peer messaging | **Agent teams** (Ch. 10) |
+| Sustained parallelism, each worker its own independent window, peer messaging | **Agent teams** (Ch. 11) |
 | Many independent sessions watched from one dashboard | **Background agents** (`/en/agent-view`) |
 | A rule that must *always* hold regardless of model judgment | **Hook** (deterministic) |
 
@@ -408,7 +408,7 @@ Use the main conversation when the task needs frequent back-and-forth, when seve
 
 ---
 
-## 7.11 Worked examples (lift-and-adapt)
+## 8.11 Worked examples (lift-and-adapt)
 
 **Read-only code reviewer** -- focused, no Edit/Write, detailed checklist: [^58]
 

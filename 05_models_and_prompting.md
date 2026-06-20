@@ -305,7 +305,7 @@ than working around it.
 ```
 [^53]
 
-For the verification side of this -- TDD with agents, adversarial review, and the C-compiler case study -- see Ch. 11.
+For the verification side of this -- TDD with agents, adversarial review, and the C-compiler case study -- see Ch. 12.
 
 ### Parallel tool calls
 
@@ -331,7 +331,7 @@ work directly rather than delegating.
 ```
 [^55]
 
-Subagent mechanics themselves -- the built-ins, the 5-level nesting limit, forks, and the config knobs -- live in Ch. 07.
+Subagent mechanics themselves -- the built-ins, the 5-level nesting limit, forks, and the config knobs -- live in Ch. 08.
 
 ### Long-horizon and multi-context-window prompting
 
@@ -354,7 +354,7 @@ The mechanics of compaction itself, and the CLAUDE.md memory hierarchy these pro
 
 ### Reversibility guardrails at the prompt level
 
-Left without guidance, the models will occasionally take an action you cannot take back: delete files, force-push, post something to the outside world. For judgment calls, prompt it. For a hard guarantee, reach for a hook (Ch. 09 covers this), because deterministic beats persuadable every time the stakes are real. The prompt form:
+Left without guidance, the models will occasionally take an action you cannot take back: delete files, force-push, post something to the outside world. For judgment calls, prompt it. For a hard guarantee, reach for a hook (Ch. 10 covers this), because deterministic beats persuadable every time the stakes are real. The prompt form:
 ```text
 Consider the reversibility and potential impact of your actions. Take local, reversible
 actions like editing files or running tests freely. For actions that are hard to reverse,

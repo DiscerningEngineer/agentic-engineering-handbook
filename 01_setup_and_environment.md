@@ -156,7 +156,7 @@ High-value fields worth knowing, all documented on the settings page: `model`, `
 ~/.claude/
   settings.json          # user config
   CLAUDE.md              # user-global memory (see Ch. 03)
-  agents/                # user subagents (see Ch. 07)
+  agents/                # user subagents (see Ch. 08)
   skills/                # user skills
   output-styles/         # user output styles
   statusline.sh          # if you use a custom statusline
@@ -383,7 +383,7 @@ Set `keep-coding-instructions: true` when you are changing how Claude communicat
 | **Output style** | Modifies the system prompt | A different role/tone/format every turn |
 | **CLAUDE.md** | Adds a user message after the system prompt | Project conventions Claude should always know (Ch. 03) |
 | **`--append-system-prompt`** | Appends to the system prompt, removes nothing | A one-off addition for a single invocation |
-| **Subagent** | Runs with its own system prompt, model, and tools | A scoped helper for a focused task (Ch. 07) |
+| **Subagent** | Runs with its own system prompt, model, and tools | A scoped helper for a focused task (Ch. 08) |
 | **Skill** | Loads task-specific instructions when invoked or relevant | A reusable workflow |
 
 [^8]
@@ -449,7 +449,7 @@ The guidance treats `CLAUDE.md` as a short, git-committed file the whole team co
 
 On permissions, the doc names three ways to cut the interruption tax without giving up control: auto mode (a classifier reviews commands and blocks only what looks risky), permission allowlists (permit specific safe tools like `npm run lint` or `git commit`), and sandboxing (OS-level filesystem and network isolation). The workflow it recommends around all of this is explore, then plan, then code: use plan mode to separate research from execution so you do not solve the wrong problem fast. [^9]
 
-The single most-emphasized lever is verification. The guide's framing: "Give Claude a check it can run: tests, a build, a screenshot to compare. It's the difference between a session you watch and one you walk away from." A check that returns a pass/fail signal Claude can read closes the loop without you in it. The full treatment of verification, TDD with agents, and adversarial review lives in Ch. 11. [^9]
+The single most-emphasized lever is verification. The guide's framing: "Give Claude a check it can run: tests, a build, a screenshot to compare. It's the difference between a session you watch and one you walk away from." A check that returns a pass/fail signal Claude can read closes the loop without you in it. The full treatment of verification, TDD with agents, and adversarial review lives in Ch. 12. [^9]
 
 For scale, the doc points at parallel sessions over isolated git worktrees, non-interactive `claude -p` for CI and fan-out loops, and a Writer/Reviewer pattern where a fresh-context session reviews the work, since a fresh context carries no bias toward code it just produced. Sessions are persistent and reversible, so the discipline is to course-correct early and `/clear` between unrelated tasks rather than let one session accumulate cruft. [^9] The worktree flag itself is `claude --worktree <name>` (short form `-w`), documented on the IDE page: each worktree keeps independent file state while sharing git history, so parallel sessions do not collide. [^7]
 

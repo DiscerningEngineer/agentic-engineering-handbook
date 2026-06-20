@@ -58,7 +58,7 @@ Three details worth knowing: [^9]
 
 ### 2.4 The Plan subagent
 
-Plan mode pairs naturally with the read-only **Plan** and **Explore** subagents. Both skip loading `CLAUDE.md` and git status so their context stays small and fast. When you want exploration *with* context isolation, run the research in a forked Explore/Plan agent so only the synthesized findings come back to your main window instead of the full file dump. Subagents get the full treatment in Ch. 07; the thing to carry from here is that plan mode and read-only agents are the same instinct working at two scales. [^11]
+Plan mode pairs naturally with the read-only **Plan** and **Explore** subagents. Both skip loading `CLAUDE.md` and git status so their context stays small and fast. When you want exploration *with* context isolation, run the research in a forked Explore/Plan agent so only the synthesized findings come back to your main window instead of the full file dump. Subagents get the full treatment in Ch. 08; the thing to carry from here is that plan mode and read-only agents are the same instinct working at two scales. [^11]
 
 ### 2.5 Senior workflow
 
@@ -431,7 +431,7 @@ Piped stdin is **capped at 10MB** (v2.1.128+); for larger inputs, write to a fil
 
 User-invoked **skills and custom commands work in `-p`**. Put `/skill-name` in the prompt string and Claude Code expands it before running. Built-in commands that open an interactive dialog (e.g. `/login`) are not available headless. From v2.1.181, `/config key=value` works in `-p` (e.g. `/config thinking=false`). And as covered in section 7, `claude -p "/goal ..."` runs an autonomous loop to completion. [^58]
 
-> `claude -p` is the **CLI surface of the Agent SDK** -- the same tools, agent loop, and context management that power Claude Code. When you outgrow shell composition -- tool-approval callbacks, native message objects, programmatic subagents -- graduate to the Python or TypeScript SDK; the loop and tools are identical. The SDK itself is Ch. 10's territory. [^59]
+> `claude -p` is the **CLI surface of the Agent SDK** -- the same tools, agent loop, and context management that power Claude Code. When you outgrow shell composition -- tool-approval callbacks, native message objects, programmatic subagents -- graduate to the Python or TypeScript SDK; the loop and tools are identical. The SDK itself is Ch. 11's territory. [^59]
 
 ---
 
